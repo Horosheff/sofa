@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.orm import Session
 import httpx
 import os
+import re
 from typing import Optional
 
 from .database import get_db
@@ -17,19 +20,48 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS настройки
+# CORS настройки - безопасные настройки для продакшена
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Разрешаем все origins для разработки
+    allow_origins=allowed_origins,  # Только разрешенные домены
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Только необходимые методы
+    allow_headers=["Authorization", "Content-Type"],  # Только необходимые заголовки
 )
 
 security = HTTPBearer()
 
 # MCP Server URL (замените на ваш)
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8080")
+
+# Функции валидации
+def validate_email(email: str) -> bool:
+    """Валидация email адреса"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_password_strength(password: str) -> bool:
+    """Валидация силы пароля"""
+    if len(password) < 8:
+        return False
+    if not re.search(r'[A-Z]', password):
+        return False
+    if not re.search(r'[a-z]', password):
+        return False
+    if not re.search(r'\d', password):
+        return False
+    return True
+
+def sanitize_input(text: str) -> str:
+    """Очистка входных данных от потенциально опасных символов"""
+    if not text:
+        return ""
+    # Удаляем потенциально опасные символы
+    dangerous_chars = ['<', '>', '"', "'", '&', ';', '(', ')', '|', '`', '$']
+    for char in dangerous_chars:
+        text = text.replace(char, '')
+    return text.strip()
 
 @app.get("/")
 async def root():
@@ -39,6 +71,23 @@ async def root():
 @app.post("/auth/register")
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Регистрация нового пользователя"""
+    # Валидация входных данных
+    if not validate_email(user_data.email):
+        raise HTTPException(
+            status_code=400,
+            detail="Некорректный email адрес"
+        )
+    
+    if not validate_password_strength(user_data.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Пароль должен содержать минимум 8 символов, включая заглавные и строчные буквы, а также цифры"
+        )
+    
+    # Очистка входных данных
+    user_data.email = sanitize_input(user_data.email.lower())
+    user_data.full_name = sanitize_input(user_data.full_name)
+    
     # Проверяем, существует ли пользователь с таким email
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -82,6 +131,16 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @app.post("/auth/login")
 async def login(login_data: UserLogin, db: Session = Depends(get_db)):
     """Вход в систему"""
+    # Валидация входных данных
+    if not validate_email(login_data.email):
+        raise HTTPException(
+            status_code=400,
+            detail="Некорректный email адрес"
+        )
+    
+    # Очистка входных данных
+    login_data.email = sanitize_input(login_data.email.lower())
+    
     user = db.query(User).filter(User.email == login_data.email).first()
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
@@ -136,9 +195,18 @@ async def update_user_settings(
         settings = UserSettings(user_id=current_user.id)
         db.add(settings)
     
-    # Обновляем настройки
+    # Валидация и очистка входных данных
+    allowed_fields = [
+        'wordpress_url', 'wordpress_username', 'wordpress_password',
+        'wordstat_client_id', 'wordstat_client_secret', 'wordstat_redirect_uri',
+        'timezone', 'language'
+    ]
+    
     for key, value in settings_data.items():
-        if hasattr(settings, key):
+        if key in allowed_fields and hasattr(settings, key):
+            # Очистка входных данных
+            if isinstance(value, str):
+                value = sanitize_input(value)
             setattr(settings, key, value)
     
     db.commit()

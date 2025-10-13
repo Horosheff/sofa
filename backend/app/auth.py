@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 import hashlib
 import uuid
+import os
+import secrets
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -11,19 +14,24 @@ from .database import get_db
 from .models import User
 
 # Настройки для JWT
-SECRET_KEY = "your-secret-key-here"  # В продакшене используйте переменную окружения
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Проверка пароля"""
-    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+    """Проверка пароля с использованием bcrypt"""
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def get_password_hash(password: str) -> str:
-    """Хеширование пароля"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Хеширование пароля с использованием bcrypt"""
+    # Генерируем соль и хешируем пароль
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def generate_connector_id(user_id: int, username: str) -> str:
     """Генерация уникального ID коннектора для MCP SSE"""
