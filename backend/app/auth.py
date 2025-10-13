@@ -1,0 +1,73 @@
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+from jose import JWTError, jwt
+import hashlib
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional
+
+from .database import get_db
+from .models import User
+
+# Настройки для JWT
+SECRET_KEY = "your-secret-key-here"  # В продакшене используйте переменную окружения
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+security = HTTPBearer()
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Проверка пароля"""
+    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+
+def get_password_hash(password: str) -> str:
+    """Хеширование пароля"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def generate_connector_id(user_id: int, username: str) -> str:
+    """Генерация уникального ID коннектора для MCP SSE"""
+    # Очищаем username от спецсимволов
+    clean_username = "".join(c.lower() for c in username if c.isalnum())[:10]
+    # Генерируем уникальный ID
+    unique_id = str(uuid.uuid4())[:8]
+    return f"{clean_username}-{user_id}-{unique_id}"
+
+def generate_mcp_sse_url(connector_id: str) -> str:
+    """Генерация URL для MCP SSE сервера"""
+    return f"https://mcp-kov4eg.com/sse/{connector_id}"
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Создание JWT токена"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Получение текущего пользователя из JWT токена"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
