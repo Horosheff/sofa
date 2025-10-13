@@ -1,27 +1,46 @@
 version: '3.8'
 
 services:
+  # Backend FastAPI
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=sqlite:///./app.db
+      - SECRET_KEY=your-production-secret-key-change-this
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://mcp-kv.ru
+      - MCP_SERVER_URL=https://mcp-kov4eg.com
+      - REDIS_URL=redis://redis:6379
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=1440
+      - LOG_LEVEL=INFO
     volumes:
       - ./backend:/app
+      - ./backend/app.db:/app/app.db  # Persistent database
     depends_on:
       - redis
+    restart: unless-stopped
 
+  # Frontend Next.js
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
     depends_on:
       - backend
+    restart: unless-stopped
 
+  # Redis for caching
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  backend_data:

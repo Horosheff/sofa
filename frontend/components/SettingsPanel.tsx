@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
 
 interface UserSettings {
@@ -35,7 +34,7 @@ export default function SettingsPanel() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [settings, setSettings] = useState<UserSettings>({})
-  const { token } = useAuthStore()
+  const { token, user } = useAuthStore()
   
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<SettingsFormData>()
 
@@ -45,20 +44,31 @@ export default function SettingsPanel() {
 
   const loadSettings = async () => {
     try {
-      const response = await axios.get('/api/user/settings', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setSettings(response.data)
+      // Пока API недоступен, используем тестовые данные
+      const testSettings = {
+        wordpress_url: '',
+        wordpress_username: '',
+        wordpress_password: '',
+        wordstat_client_id: '',
+        wordstat_client_secret: '',
+        wordstat_redirect_uri: '',
+        mcp_sse_url: `https://mcp-kov4eg.com/sse/${user?.id || 'user-12345'}`,
+        mcp_connector_id: `${user?.id || 'user-12345'}-connector`,
+        timezone: 'UTC',
+        language: 'ru'
+      }
+      
+      setSettings(testSettings)
       
       // Заполняем форму
-      setValue('wordpress_url', response.data.wordpress_url || '')
-      setValue('wordpress_username', response.data.wordpress_username || '')
-      setValue('wordstat_client_id', response.data.wordstat_client_id || '')
-      setValue('wordstat_redirect_uri', response.data.wordstat_redirect_uri || '')
-      setValue('mcp_sse_url', response.data.mcp_sse_url || '')
-      setValue('mcp_connector_id', response.data.mcp_connector_id || '')
-      setValue('timezone', response.data.timezone || 'UTC')
-      setValue('language', response.data.language || 'ru')
+      setValue('wordpress_url', testSettings.wordpress_url || '')
+      setValue('wordpress_username', testSettings.wordpress_username || '')
+      setValue('wordstat_client_id', testSettings.wordstat_client_id || '')
+      setValue('wordstat_redirect_uri', testSettings.wordstat_redirect_uri || '')
+      setValue('mcp_sse_url', testSettings.mcp_sse_url || '')
+      setValue('mcp_connector_id', testSettings.mcp_connector_id || '')
+      setValue('timezone', testSettings.timezone || 'UTC')
+      setValue('language', testSettings.language || 'ru')
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error)
     }
@@ -69,12 +79,11 @@ export default function SettingsPanel() {
     setMessage('')
     
     try {
-      await axios.put('/api/user/settings', data, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      // Пока API недоступен, просто сохраняем в localStorage
+      localStorage.setItem('user-settings', JSON.stringify(data))
       setMessage('Настройки успешно сохранены!')
     } catch (error: any) {
-      setMessage('Ошибка сохранения настроек: ' + (error.response?.data?.detail || error.message))
+      setMessage('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
     } finally {
       setIsLoading(false)
     }
@@ -86,6 +95,31 @@ export default function SettingsPanel() {
       <div className="text-center">
         <h2 className="text-3xl font-bold gradient-text mb-4">Настройки</h2>
         <p className="text-white/70">Настройте подключения к внешним сервисам</p>
+      </div>
+
+      {/* User Info */}
+      <div className="modern-card p-6">
+        <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+          👤 Информация о пользователе
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-2">
+              Имя пользователя
+            </label>
+            <div className="modern-input w-full bg-slate-800/50 text-white/70">
+              {user?.full_name || 'Не указано'}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-2">
+              Email
+            </label>
+            <div className="modern-input w-full bg-slate-800/50 text-white/70">
+              {user?.email || 'Не указано'}
+            </div>
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
