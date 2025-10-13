@@ -85,7 +85,7 @@ Type=simple
 User=sofiya
 WorkingDirectory=/opt/sofiya/frontend
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node server.js
+ExecStart=/usr/bin/npm start
 Restart=always
 RestartSec=3
 
