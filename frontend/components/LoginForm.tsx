@@ -2,108 +2,90 @@
 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import api from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import axios from 'axios'
 
-interface LoginFormData {
-  email: string
-  password: string
-}
+const loginSchema = z.object({
+  email: z.string().email('Некорректный email'),
+  password: z.string().min(6, 'Пароль должен содержать минимум 6 символов'),
+})
 
-interface LoginFormProps {
-  onSwitchToRegister: () => void
-}
+type LoginFormData = z.infer<typeof loginSchema>
 
-export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
+export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const { login } = useAuthStore()
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>()
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  })
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     setError('')
-    
+
     try {
-      const response = await axios.post('/api/auth/login', data)
-      const { access_token } = response.data
+      const response = await api.post('/auth/login', data)
+      const { access_token, user } = response.data
       
-      // Получаем информацию о пользователе
-      const userResponse = await axios.get('/api/auth/me', {
-        headers: { Authorization: `Bearer ${access_token}` }
-      })
-      
-      login(access_token, userResponse.data)
+      login(access_token, user)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка входа в систему')
+      setError(err.response?.data?.detail || 'Ошибка входа')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Вход в систему</h2>
-        <p className="text-white/60">Войдите в свой аккаунт</p>
-      </div>
-      
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Email
-          </label>
-          <input
-            {...register('email', { required: 'Email обязателен' })}
-            type="email"
-            className="modern-input w-full"
-            placeholder="your@email.com"
-          />
-          {errors.email && (
-            <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Пароль
-          </label>
-          <input
-            {...register('password', { required: 'Пароль обязателен' })}
-            type="password"
-            className="modern-input w-full"
-            placeholder="••••••••"
-          />
-          {errors.password && (
-            <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
-          )}
-        </div>
-        
-        {error && (
-          <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
-            {error}
-          </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          {...register('email')}
+          type="email"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
         )}
-        
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full py-3 text-lg font-semibold disabled:opacity-50"
-        >
-          {isLoading ? 'Вход...' : 'Войти'}
-        </button>
-      </form>
-      
-      <div className="text-center">
-        <span className="text-white/60">Нет аккаунта? </span>
-        <button
-          onClick={onSwitchToRegister}
-          className="text-indigo-300 hover:text-indigo-200 font-medium transition-colors"
-        >
-          Зарегистрироваться
-        </button>
       </div>
-    </div>
+
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          Пароль
+        </label>
+        <input
+          {...register('password')}
+          type="password"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+        {errors.password && (
+          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+      >
+        {isLoading ? 'Вход...' : 'Войти'}
+      </button>
+    </form>
   )
 }

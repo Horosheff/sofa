@@ -1,70 +1,97 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import SettingsPanel from './SettingsPanel'
-import ToolsPanel from './ToolsPanel'
+import api from '@/lib/api'
 
 export default function Dashboard() {
-  const { logout, user } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<'tools' | 'settings'>('tools')
+  const { user, logout } = useAuthStore()
+  const [mcpTools, setMcpTools] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMcpTools = async () => {
+      try {
+        const response = await api.get('/mcp/tools')
+        setMcpTools(response.data.tools || [])
+      } catch (error) {
+        console.error('Ошибка загрузки MCP инструментов:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchMcpTools()
+  }, [])
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="animated-bg"></div>
-      
-      {/* Header */}
-      <header className="glass-dark border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold gradient-text">MCP KOV4EG</h1>
-              <p className="text-white/70 mt-1">Добро пожаловать, {user?.full_name || user?.email}!</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="border-4 border-dashed border-gray-200 rounded-lg p-8">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Добро пожаловать, {user?.full_name || user?.email}!
+              </h1>
+              
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+                  MCP Инструменты
+                </h2>
+                
+                {isLoading ? (
+                  <div className="text-gray-500">Загрузка инструментов...</div>
+                ) : mcpTools.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {mcpTools.map((tool, index) => (
+                      <div key={index} className="bg-white p-4 rounded-lg shadow">
+                        <h3 className="font-medium text-gray-900">{tool.name}</h3>
+                        <p className="text-sm text-gray-600">{tool.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500">
+                    MCP инструменты недоступны
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <h3 className="text-lg font-medium text-blue-900">
+                    WordPress MCP Platform
+                  </h3>
+                  <p className="text-blue-700">
+                    Управляйте WordPress сайтами через MCP протокол
+                  </p>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                  <h3 className="text-lg font-medium text-green-900">
+                    Доступные функции
+                  </h3>
+                  <ul className="text-green-700 space-y-1">
+                    <li>• Создание и управление постами</li>
+                    <li>• Загрузка медиафайлов</li>
+                    <li>• Управление пользователями</li>
+                    <li>• Настройка плагинов и тем</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <button
+                  onClick={logout}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                >
+                  Выйти
+                </button>
+              </div>
             </div>
-            <button
-              onClick={logout}
-              className="btn-primary bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
-            >
-              Выйти
-            </button>
           </div>
         </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="glass-dark border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab('tools')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
-                activeTab === 'tools'
-                  ? 'border-indigo-400 text-indigo-300'
-                  : 'border-transparent text-white/60 hover:text-white/80 hover:border-white/30'
-              }`}
-            >
-              🛠️ Инструменты
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
-                activeTab === 'settings'
-                  ? 'border-indigo-400 text-indigo-300'
-                  : 'border-transparent text-white/60 hover:text-white/80 hover:border-white/30'
-              }`}
-            >
-              ⚙️ Настройки
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'tools' && <ToolsPanel />}
-        {activeTab === 'settings' && <SettingsPanel />}
-      </main>
+      </div>
     </div>
   )
 }

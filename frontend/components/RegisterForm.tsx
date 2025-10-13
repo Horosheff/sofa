@@ -2,51 +2,48 @@
 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import api from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
-import axios from 'axios'
 
-interface RegisterFormData {
-  full_name: string
-  email: string
-  password: string
-  confirmPassword: string
-}
+const registerSchema = z.object({
+  email: z.string().email('Некорректный email'),
+  password: z.string().min(8, 'Пароль должен содержать минимум 8 символов'),
+  full_name: z.string().min(2, 'Имя должно содержать минимум 2 символа'),
+})
 
-interface RegisterFormProps {
-  onSwitchToLogin: () => void
-}
+type RegisterFormData = z.infer<typeof registerSchema>
 
-export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
+export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const { login } = useAuthStore()
-  
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormData>()
-  const password = watch('password')
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  })
 
   const onSubmit = async (data: RegisterFormData) => {
-    if (data.password !== data.confirmPassword) {
-      setError('Пароли не совпадают')
-      return
-    }
-    
     setIsLoading(true)
     setError('')
-    
+    setSuccess('')
+
     try {
-      const response = await axios.post('/api/auth/register', {
-        full_name: data.full_name,
-        email: data.email,
-        password: data.password
-      })
+      const response = await api.post('/auth/register', data)
       const { access_token } = response.data
       
-      // Получаем информацию о пользователе
-      const userResponse = await axios.get('/api/auth/me', {
-        headers: { Authorization: `Bearer ${access_token}` }
-      })
+      setSuccess('Регистрация успешна! Выполняется вход...')
       
-      login(access_token, userResponse.data)
+      // Автоматический вход после регистрации
+      setTimeout(() => {
+        login(access_token, { email: data.email, full_name: data.full_name })
+      }, 1000)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка регистрации')
     } finally {
@@ -55,100 +52,68 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Регистрация</h2>
-        <p className="text-white/60">Создайте новый аккаунт</p>
-      </div>
-      
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Полное имя
-          </label>
-          <input
-            {...register('full_name', { required: 'Имя обязательно' })}
-            type="text"
-            className="modern-input w-full"
-            placeholder="Иван Иванов"
-          />
-          {errors.full_name && (
-            <p className="text-red-400 text-sm mt-1">{errors.full_name.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Email
-          </label>
-          <input
-            {...register('email', { required: 'Email обязателен' })}
-            type="email"
-            className="modern-input w-full"
-            placeholder="your@email.com"
-          />
-          {errors.email && (
-            <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Пароль
-          </label>
-          <input
-            {...register('password', { required: 'Пароль обязателен', minLength: { value: 6, message: 'Пароль должен содержать минимум 6 символов' } })}
-            type="password"
-            className="modern-input w-full"
-            placeholder="••••••••"
-          />
-          {errors.password && (
-            <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
-          )}
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Подтвердите пароль
-          </label>
-          <input
-            {...register('confirmPassword', { 
-              required: 'Подтверждение пароля обязательно',
-              validate: value => value === password || 'Пароли не совпадают'
-            })}
-            type="password"
-            className="modern-input w-full"
-            placeholder="••••••••"
-          />
-          {errors.confirmPassword && (
-            <p className="text-red-400 text-sm mt-1">{errors.confirmPassword.message}</p>
-          )}
-        </div>
-        
-        {error && (
-          <div className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
-            {error}
-          </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
+          Полное имя
+        </label>
+        <input
+          {...register('full_name')}
+          type="text"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+        {errors.full_name && (
+          <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
         )}
-        
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full py-3 text-lg font-semibold disabled:opacity-50"
-        >
-          {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
-        </button>
-      </form>
-      
-      <div className="text-center">
-        <span className="text-white/60">Уже есть аккаунт? </span>
-        <button
-          onClick={onSwitchToLogin}
-          className="text-indigo-300 hover:text-indigo-200 font-medium transition-colors"
-        >
-          Войти
-        </button>
       </div>
-    </div>
+
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          {...register('email')}
+          type="email"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          Пароль
+        </label>
+        <input
+          {...register('password')}
+          type="password"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+        {errors.password && (
+          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="rounded-md bg-green-50 p-4">
+          <p className="text-sm text-green-800">{success}</p>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+      >
+        {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+      </button>
+    </form>
   )
 }
