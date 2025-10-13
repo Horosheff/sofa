@@ -1,33 +1,21 @@
-# Используем официальный Node.js образ
 FROM node:18-alpine
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем package.json и package-lock.json
+# Copy package files
 COPY package*.json ./
 
-# Устанавливаем зависимости
+# Install dependencies
 RUN npm ci --only=production
 
-# Копируем исходный код
+# Copy source code
 COPY . .
 
-# Проверяем структуру файлов
-RUN echo "🔍 Проверяем структуру файлов..." && \
-    ls -la && \
-    echo "📁 Содержимое store/:" && \
-    ls -la store/ && \
-    echo "📁 Содержимое components/:" && \
-    ls -la components/ && \
-    echo "📄 Содержимое tsconfig.json:" && \
-    cat tsconfig.json
-
-# Собираем приложение
+# Build the application
 RUN npm run build
 
-# Открываем порт
+# Expose port
 EXPOSE 3000
 
-# Команда запуска
+# Start the application
 CMD ["npm", "start"]
