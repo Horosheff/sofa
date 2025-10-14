@@ -88,22 +88,42 @@ class OAuthStore:
         }
         return {"client_id": client_id, "client_secret": client_secret}
 
-    def issue_auth_code(self, client_id: str, connector_id: str) -> str:
+    def issue_auth_code(self, client_id: str, connector_id: str, code_challenge: Optional[str] = None) -> str:
         code = secrets.token_urlsafe(16)
         self.auth_codes[code] = {
             "client_id": client_id,
             "connector_id": connector_id,
             "expires_at": (datetime.utcnow() + timedelta(minutes=5)).isoformat(),
+            "code_challenge": code_challenge,
         }
         return code
 
-    def exchange_code(self, code: str, client_id: str) -> Optional[str]:
+    def exchange_code(self, code: str, client_id: str, code_verifier: Optional[str] = None) -> Optional[str]:
         data = self.auth_codes.get(code)
         if not data or data["client_id"] != client_id:
             return None
         if datetime.utcnow() > datetime.fromisoformat(data["expires_at"]):
             self.auth_codes.pop(code, None)
             return None
+        
+        # Verify PKCE if code_challenge was provided
+        if data.get("code_challenge"):
+            if not code_verifier:
+                logger.warning("PKCE: code_verifier required but not provided")
+                return None
+            
+            import hashlib
+            import base64
+            
+            # Compute challenge from verifier
+            computed_challenge = base64.urlsafe_b64encode(
+                hashlib.sha256(code_verifier.encode()).digest()
+            ).decode().rstrip("=")
+            
+            if computed_challenge != data["code_challenge"]:
+                logger.warning("PKCE: code_challenge mismatch")
+                return None
+        
         token = secrets.token_urlsafe(32)
         self.tokens[token] = {
             "connector_id": data["connector_id"],
@@ -758,19 +778,29 @@ async def mcp_manifest_post(request: Request):
 
 
 @app.get("/oauth/authorize", response_class=HTMLResponse)
-async def oauth_authorize(client_id: str, redirect_uri: str, state: Optional[str] = None):
+async def oauth_authorize(
+    client_id: str,
+    redirect_uri: str,
+    state: Optional[str] = None,
+    code_challenge: Optional[str] = None,
+    code_challenge_method: Optional[str] = None,
+):
     if client_id not in oauth_store.clients:
         oauth_store.clients[client_id] = {
             "name": "imported",
             "client_secret": secrets.token_urlsafe(32),
             "connector_id": "",
         }
+    
     hidden_state = f"<input type='hidden' name='state' value='{state}'>" if state else ""
+    hidden_challenge = f"<input type='hidden' name='code_challenge' value='{code_challenge}'>" if code_challenge else ""
+    
     return (
         "<html><body><form method='post'>"
         f"<input type='hidden' name='client_id' value='{client_id}'>"
         f"<input type='hidden' name='redirect_uri' value='{redirect_uri}'>"
         f"{hidden_state}"
+        f"{hidden_challenge}"
         "<label>Connector ID: <input name='connector_id'></label><br>"
         "<button type='submit'>Authorize</button>"
         "</form></body></html>"
@@ -781,10 +811,11 @@ async def oauth_authorize(client_id: str, redirect_uri: str, state: Optional[str
 async def oauth_authorize_submit(
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
-    state: Optional[str] = Form(None),
     connector_id: str = Form(...),
+    state: Optional[str] = Form(None),
+    code_challenge: Optional[str] = Form(None),
 ):
-    code = oauth_store.issue_auth_code(client_id, connector_id)
+    code = oauth_store.issue_auth_code(client_id, connector_id, code_challenge)
     redirect_url = f"{redirect_uri}?code={code}"
     if state:
         redirect_url += f"&state={state}"
@@ -797,11 +828,12 @@ async def oauth_token(
     client_secret: str = Form(...),
     code: str = Form(...),
     redirect_uri: str = Form(...),
+    code_verifier: Optional[str] = Form(None),
 ):
     client = oauth_store.clients.get(client_id)
     if not client or client["client_secret"] != client_secret:
         raise HTTPException(status_code=400, detail="invalid_client")
-    token = oauth_store.exchange_code(code, client_id)
+    token = oauth_store.exchange_code(code, client_id, code_verifier)
     if not token:
         raise HTTPException(status_code=400, detail="invalid_grant")
     return {
