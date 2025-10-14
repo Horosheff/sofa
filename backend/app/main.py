@@ -1,12 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 import httpx
 import os
 import re
 import asyncio
 import json
+import secrets
+from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 from .database import get_db
@@ -57,6 +60,58 @@ class SseManager:
             await queue.put(json.dumps(data))
 
 sse_manager = SseManager()
+
+class OAuthStore:
+    def __init__(self):
+        self.clients: Dict[str, Dict[str, str]] = {}
+        self.auth_codes: Dict[str, Dict[str, str]] = {}
+        self.tokens: Dict[str, Dict[str, str]] = {}
+
+    def create_client(self, name: str) -> Dict[str, str]:
+        client_id = secrets.token_urlsafe(16)
+        client_secret = secrets.token_urlsafe(32)
+        self.clients[client_id] = {
+            "name": name,
+            "client_secret": client_secret,
+            "connector_id": "",
+        }
+        return {"client_id": client_id, "client_secret": client_secret}
+
+    def issue_auth_code(self, client_id: str, connector_id: str) -> str:
+        code = secrets.token_urlsafe(16)
+        self.auth_codes[code] = {
+            "client_id": client_id,
+            "connector_id": connector_id,
+            "expires_at": (datetime.utcnow() + timedelta(minutes=5)).isoformat(),
+        }
+        return code
+
+    def exchange_code(self, code: str, client_id: str) -> Optional[str]:
+        data = self.auth_codes.get(code)
+        if not data or data["client_id"] != client_id:
+            return None
+        if datetime.utcnow() > datetime.fromisoformat(data["expires_at"]):
+            self.auth_codes.pop(code, None)
+            return None
+        token = secrets.token_urlsafe(32)
+        self.tokens[token] = {
+            "connector_id": data["connector_id"],
+            "expires_at": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+        }
+        self.auth_codes.pop(code, None)
+        return token
+
+    def get_connector_by_token(self, token: str) -> Optional[str]:
+        data = self.tokens.get(token)
+        if not data:
+            return None
+        if datetime.utcnow() > datetime.fromisoformat(data["expires_at"]):
+            self.tokens.pop(token, None)
+            return None
+        return data["connector_id"]
+
+
+oauth_store = OAuthStore()
 
 # Функции валидации
 def validate_email(email: str) -> bool:
@@ -350,6 +405,14 @@ async def sse_endpoint(
     request: Request,
     db: Session = Depends(get_db)
 ):
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1]
+        token_connector = oauth_store.get_connector_by_token(token)
+        if not token_connector:
+            raise HTTPException(status_code=401, detail="Недействительный токен")
+        connector_id = token_connector
+
     settings = (
         db.query(UserSettings)
         .filter(UserSettings.mcp_connector_id == connector_id)
@@ -416,4 +479,66 @@ async def get_available_tools():
             "get_wordstat_dynamics", "get_wordstat_regions", "get_wordstat_user_info",
             "auto_setup_wordstat"
         ],
+    }
+
+@app.get("/.well-known/openid-configuration")
+async def openid_config():
+    return {
+        "issuer": "https://mcp-kv.ru",
+        "authorization_endpoint": "https://mcp-kv.ru/oauth/authorize",
+        "token_endpoint": "https://mcp-kv.ru/oauth/token",
+        "scopes_supported": ["mcp"],
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code"],
+    }
+
+
+@app.get("/oauth/authorize", response_class=HTMLResponse)
+async def oauth_authorize(client_id: str, redirect_uri: str, state: Optional[str] = None):
+    if client_id not in oauth_store.clients:
+        oauth_store.clients[client_id] = {
+            "name": "imported",
+            "client_secret": secrets.token_urlsafe(32),
+            "connector_id": "",
+        }
+    return (
+        "<html><body><form method='post'>"
+        "<label>Connector ID: <input name='connector_id'></label><br>"
+        "<button type='submit'>Authorize</button>"
+        "</form></body></html>"
+    )
+
+
+@app.post("/oauth/authorize")
+async def oauth_authorize_submit(
+    client_id: str = Form(...),
+    redirect_uri: str = Form(...),
+    state: Optional[str] = Form(None),
+    connector_id: str = Form(...),
+):
+    code = oauth_store.issue_auth_code(client_id, connector_id)
+    redirect_url = f"{redirect_uri}?code={code}"
+    if state:
+        redirect_url += f"&state={state}"
+    return RedirectResponse(url=redirect_url, status_code=302)
+
+
+@app.post("/oauth/token")
+async def oauth_token(
+    client_id: str = Form(...),
+    client_secret: str = Form(...),
+    code: str = Form(...),
+    redirect_uri: str = Form(...),
+):
+    client = oauth_store.clients.get(client_id)
+    if not client or client["client_secret"] != client_secret:
+        raise HTTPException(status_code=400, detail="invalid_client")
+    token = oauth_store.exchange_code(code, client_id)
+    if not token:
+        raise HTTPException(status_code=400, detail="invalid_grant")
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": 3600,
+        "scope": "mcp",
     }
