@@ -113,7 +113,6 @@ export default function WordstatOAuth({
 
       if (response.ok) {
         setSuccess('✅ Токен сохранен вручную!');
-        setHasToken(true);
         onTokenReceived(manualToken.trim());
         setManualToken('');
         setShowManualInput(false);
@@ -221,19 +220,6 @@ export default function WordstatOAuth({
           )}
         </div>
 
-        {/* Тестирование токена */}
-        {hasToken && (
-          <div>
-            <h4 className="font-medium mb-2">🧪 Тестирование токена</h4>
-            <button
-              onClick={testToken}
-              disabled={isLoading}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              {isLoading ? '⏳ Проверка...' : '🔍 Проверить токен'}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="mt-6 p-4 bg-blue-50 rounded-md">
