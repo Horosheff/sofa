@@ -1316,40 +1316,261 @@ async def send_sse_event(
                    "configured" if settings.wordpress_url else "not configured",
                    "configured" if settings.wordstat_access_token else "not configured")
         
-        # Handle tool calls
+        # Handle tool calls with REAL API implementations
         try:
-            if tool_name == "wordpress_get_posts":
-                # Implementation for wordpress_get_posts
+            if tool_name == "wordstat_get_user_info":
+                # Получаем информацию о пользователе
+                if not settings.wordstat_access_token and not settings.wordstat_client_id:
+                    result_content = """❌ Wordstat не настроен!
+
+Настройки в базе данных:
+- Client ID: отсутствует
+- Access Token: отсутствует
+
+📋 Что нужно сделать:
+1. Зайдите на dashboard по адресу https://mcp-kv.ru
+2. В разделе "Настройки" заполните поля Wordstat:
+   - Client ID
+   - Client Secret (Application Password)
+   - Redirect URI (можно использовать https://oauth.yandex.ru/verification_code)
+
+3. Затем используйте wordstat_auto_setup для получения инструкций по OAuth"""
+                
+                elif not settings.wordstat_access_token and settings.wordstat_client_id:
+                    result_content = f"""⚠️ Wordstat настроен частично!
+
+Найдено в базе:
+- Client ID: {settings.wordstat_client_id}
+- Client Secret: {'✓ установлен' if settings.wordstat_client_secret else '✗ отсутствует'}
+- Access Token: отсутствует
+
+🔐 Для получения Access Token:
+1. Откройте в браузере:
+   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id}
+
+2. Разрешите доступ к приложению
+
+3. Скопируйте access_token из URL
+
+4. Используйте wordstat_set_token с полученным токеном"""
+                
+                else:
+                    # Есть токен - проверяем через API v1 /userInfo
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/userInfo",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                timeout=30.0
+                            )
+                            
+                            logger.info(f"Wordstat API /v1/userInfo status: {resp.status_code}")
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                result_content = f"""✅ Wordstat API работает!
+
+👤 Информация о пользователе:
+- Логин: {data.get('login', 'не указан')}
+- ID: {data.get('user_id', 'не указан')}
+- Статус: {data.get('status', 'не указан')}
+
+🔧 Настройки в системе:
+- Client ID: {settings.wordstat_client_id}
+- Access Token: {'✓ установлен' if settings.wordstat_access_token else '✗ отсутствует'}
+
+Проверьте подключение: wordstat_get_user_info"""
+                            else:
+                                result_content = f"""❌ Ошибка Wordstat API!
+
+Статус: {resp.status_code}
+Ответ: {resp.text}
+
+Возможные причины:
+1. Неверный access_token
+2. Токен истек
+3. Проблемы с API Yandex
+
+Попробуйте:
+1. Обновить токен через wordstat_auto_setup
+2. Проверить настройки в dashboard"""
+                                
+                    except Exception as e:
+                        result_content = f"""❌ Ошибка подключения к Wordstat API!
+
+Ошибка: {str(e)}
+
+Проверьте:
+1. Интернет соединение
+2. Правильность токена
+3. Доступность API Yandex
+
+Попробуйте: wordstat_auto_setup"""
+                
                 response = {
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "result": {
                         "content": [{
                             "type": "text",
-                            "text": f"WordPress posts retrieved for user {settings.user_id}"
+                            "text": result_content
                         }]
                     }
                 }
-            elif tool_name == "wordpress_create_post":
-                # Implementation for wordpress_create_post
+                
+            elif tool_name == "wordstat_get_regions":
+                # Получаем список регионов
+                if not settings.wordstat_access_token:
+                    result_content = "❌ Wordstat не настроен! Сначала настройте токен через wordstat_auto_setup"
+                else:
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/regions",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                regions = data.get('data', [])
+                                result_content = f"✅ Получено {len(regions)} регионов:\n\n"
+                                
+                                for region in regions[:10]:  # Показываем первые 10
+                                    result_content += f"• {region.get('name', 'Без названия')} (ID: {region.get('region_id', 'N/A')})\n"
+                                
+                                if len(regions) > 10:
+                                    result_content += f"\n... и еще {len(regions) - 10} регионов"
+                            else:
+                                result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
+                                
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
+                
                 response = {
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "result": {
                         "content": [{
                             "type": "text",
-                            "text": f"Post created successfully for user {settings.user_id}"
+                            "text": result_content
                         }]
                     }
                 }
+                
+            elif tool_name == "wordstat_get_top_requests":
+                # Получаем топ запросов
+                phrase = tool_args.get("phrase", "")
+                region_id = tool_args.get("region_id", 0)
+                
+                if not settings.wordstat_access_token:
+                    result_content = "❌ Wordstat не настроен! Сначала настройте токен через wordstat_auto_setup"
+                elif not phrase:
+                    result_content = "❌ Не указана фраза для поиска! Используйте параметр 'phrase'"
+                else:
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/topRequests",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                json={
+                                    "phrase": phrase,
+                                    "region_id": region_id
+                                },
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                requests = data.get('data', [])
+                                result_content = f"✅ Топ запросов для фразы '{phrase}':\n\n"
+                                
+                                for i, req in enumerate(requests[:10], 1):
+                                    result_content += f"{i}. {req.get('phrase', 'N/A')} - {req.get('shows', 0)} показов\n"
+                                
+                                if len(requests) > 10:
+                                    result_content += f"\n... и еще {len(requests) - 10} запросов"
+                            else:
+                                result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
+                                
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
+                
+            elif tool_name == "wordstat_auto_setup":
+                # Автоматическая настройка
+                if not settings.wordstat_client_id:
+                    result_content = f"""❌ Wordstat Client ID не настроен!
+
+📋 Настройте Client ID в dashboard:
+1. Зайдите на https://mcp-kv.ru
+2. В разделе "Настройки" заполните:
+   - Client ID
+   - Client Secret
+   - Redirect URI
+
+3. Затем повторите эту команду"""
+                else:
+                    result_content = f"""🔧 Автоматическая настройка Wordstat
+
+📋 Ваши настройки:
+- Client ID: {settings.wordstat_client_id}
+- Client Secret: {'✓ установлен' if settings.wordstat_client_secret else '✗ отсутствует'}
+- Redirect URI: {settings.wordstat_redirect_uri or 'не установлен'}
+
+🔐 Получение Access Token:
+1. Откройте в браузере:
+   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id}
+
+2. Разрешите доступ к приложению
+
+3. Скопируйте access_token из URL
+
+4. Используйте wordstat_set_token с полученным токеном
+
+Проверьте подключение: wordstat_get_user_info"""
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
+                
             else:
+                # Для остальных инструментов
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: get_user_info, get_regions, get_top_requests, auto_setup"
+                
                 response = {
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "result": {
                         "content": [{
                             "type": "text",
-                            "text": f"Tool {tool_name} executed successfully"
+                            "text": result_content
                         }]
                     }
                 }
