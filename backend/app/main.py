@@ -708,9 +708,12 @@ async def oauth_register(request: Request):
     
     logger.info("OAuth client registered: %s (%s)", client_id, body.get("client_name"))
     
+    redirect_uris = body.get("redirect_uris", [])
+    
     return {
         "client_id": client_id,
         "client_secret": client_secret,
+        "redirect_uris": redirect_uris,
         "client_id_issued_at": int(datetime.utcnow().timestamp()),
         "client_secret_expires_at": 0,  # Never expires
     }
