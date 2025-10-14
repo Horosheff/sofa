@@ -1947,7 +1947,7 @@ async def oauth_token(request: Request):
 
 
 @app.post("/api/oauth/yandex/callback")
-async def yandex_oauth_callback(request: Request, current_user: User = Depends(get_current_user)):
+async def yandex_oauth_callback(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Обработка OAuth callback от Yandex"""
     try:
         data = await request.json()
