@@ -1281,46 +1281,35 @@ async def send_sse_event(
         
         logger.info("SSE POST: tools/call for %s with args: %s", tool_name, json.dumps(tool_args))
         
-        # SECURITY: For tools/call, we MUST have authorization to know which user is calling
-        if not auth_header or not auth_header.lower().startswith("bearer "):
-            logger.warning("SSE POST: tools/call requires Authorization header for security")
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32600,
-                    "message": "Authorization required for tool calls"
-                }
-            }
-        
-        # Get user from token
-        token = auth_header.split(" ", 1)[1]
-        user = get_user_from_token(token, db)
-        if not user:
-            logger.warning("SSE POST: tools/call invalid token")
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32600,
-                    "message": "Invalid token"
-                }
-            }
-        
-        logger.info("SSE POST: tools/call authorized for user %s (ID: %s)", user.email, user.id)
-        
-        # Get user settings for this specific user
-        settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        # Get user from connector_id (ChatGPT doesn't send Authorization header)
+        # Find the user who owns this connector_id
+        settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
         if not settings:
-            logger.warning("SSE POST: tools/call no settings found for user %s", user.email)
+            logger.warning("SSE POST: tools/call connector %s not found in database", connector_id)
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
                 "error": {
                     "code": -32600,
-                    "message": "User settings not found"
+                    "message": "Connector not found"
                 }
             }
+        
+        # Get user from settings
+        user = db.query(User).filter(User.id == settings.user_id).first()
+        if not user:
+            logger.warning("SSE POST: tools/call user not found for connector %s", connector_id)
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "User not found"
+                }
+            }
+        
+        logger.info("SSE POST: tools/call authorized for user %s (ID: %s) via connector %s", 
+                   user.email, user.id, connector_id)
         
         logger.info("SSE POST: tools/call using settings for user %s - WordPress: %s, Wordstat: %s", 
                    user.email, 
