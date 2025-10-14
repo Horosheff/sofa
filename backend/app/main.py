@@ -550,14 +550,40 @@ async def send_sse_event_oauth(
         logger.info("SSE POST: Responding to initialize with: %s", json.dumps(response))
         await sse_manager.send(connector_id, response)
     elif method == "tools/list":
+        tools = [
+            {
+                "name": "wordpress_create_post",
+                "description": "Create a new WordPress post",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Post title"},
+                        "content": {"type": "string", "description": "Post content (HTML)"},
+                        "status": {"type": "string", "enum": ["publish", "draft"], "default": "draft"}
+                    },
+                    "required": ["title", "content"]
+                }
+            },
+            {
+                "name": "wordpress_get_posts",
+                "description": "Get list of WordPress posts",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "per_page": {"type": "integer", "default": 10},
+                        "status": {"type": "string", "enum": ["publish", "draft", "any"], "default": "any"}
+                    }
+                }
+            }
+        ]
         response = {
             "jsonrpc": "2.0",
             "id": request_id,
             "result": {
-                "tools": []
+                "tools": tools
             }
         }
-        logger.info("SSE POST: Responding to tools/list")
+        logger.info("SSE POST: Responding to tools/list with %d tools", len(tools))
         await sse_manager.send(connector_id, response)
     else:
         logger.info("SSE POST /mcp/sse: event dispatched to connector %s", connector_id)
