@@ -45,7 +45,20 @@ def generate_connector_id(user_id: int, username: str) -> str:
 
 def generate_mcp_sse_url(connector_id: str) -> str:
     """Генерация URL для MCP SSE сервера"""
-    return f"https://mcp-kv.ru/sse/{connector_id}"
+    return f"https://mcp-kv.ru/mcp/sse/{connector_id}"
+
+
+def get_user_from_token(token: str, db: Session) -> Optional[User]:
+    """Получить пользователя по JWT токену, возвращает None если токен невалидный"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: Optional[str] = payload.get("sub")
+        if not email:
+            return None
+    except JWTError:
+        return None
+
+    return db.query(User).filter(User.email == email).first()
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Создание JWT токена"""

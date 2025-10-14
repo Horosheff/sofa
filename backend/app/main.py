@@ -9,11 +9,20 @@ import re
 import asyncio
 import json
 import secrets
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 from .database import get_db
-from .auth import get_current_user, create_access_token, get_password_hash, verify_password, generate_connector_id, generate_mcp_sse_url
+from .auth import (
+    get_current_user,
+    create_access_token,
+    get_password_hash,
+    verify_password,
+    generate_connector_id,
+    generate_mcp_sse_url,
+    get_user_from_token,
+)
 from sse_starlette import EventSourceResponse
 from .models import User, UserSettings
 from .schemas import UserCreate, UserLogin, MCPRequest, MCPResponse
@@ -60,6 +69,8 @@ class SseManager:
             await queue.put(json.dumps(data))
 
 sse_manager = SseManager()
+
+logger = logging.getLogger("uvicorn.error")
 
 class OAuthStore:
     def __init__(self):
@@ -454,13 +465,57 @@ async def send_sse_event(
     db: Session = Depends(get_db)
 ):
     auth_header = request.headers.get("Authorization")
+    logger.info(
+        "SSE POST: connector %s received request, has Authorization header: %s",
+        connector_id,
+        bool(auth_header),
+    )
     if auth_header and auth_header.lower().startswith("bearer "):
         token = auth_header.split(" ", 1)[1]
+        logger.info("SSE POST: bearer token received for connector %s", connector_id)
+
         token_connector = oauth_store.get_connector_by_token(token)
-        if not token_connector:
-            raise HTTPException(status_code=401, detail="Недействительный токен")
-        connector_id = token_connector
+        if token_connector:
+            logger.info(
+                "SSE POST: authorized via OAuth token for connector %s -> %s",
+                connector_id,
+                token_connector,
+            )
+            connector_id = token_connector
+        else:
+            # возможно JWT токен
+            user = get_user_from_token(token, db)
+            if not user:
+                logger.warning(
+                    "SSE POST: bearer token rejected (not OAuth/JWT) for connector %s",
+                    connector_id,
+                )
+                raise HTTPException(status_code=401, detail="Недействительный токен")
+
+            settings = (
+                db.query(UserSettings)
+                .filter(UserSettings.user_id == user.id)
+                .filter(UserSettings.mcp_connector_id == connector_id)
+                .first()
+            )
+            if not settings:
+                logger.warning(
+                    "SSE POST: user %s has no access to connector %s",
+                    user.id,
+                    connector_id,
+                )
+                raise HTTPException(status_code=403, detail="Нет доступа к этому коннектору")
+            logger.info(
+                "SSE POST: authorized via JWT user %s for connector %s",
+                user.id,
+                connector_id,
+            )
     elif current_user:
+        logger.info(
+            "SSE POST: authorized via Depends user %s for connector %s",
+            current_user.id,
+            connector_id,
+        )
         settings = (
             db.query(UserSettings)
             .filter(UserSettings.user_id == current_user.id)
@@ -468,11 +523,21 @@ async def send_sse_event(
             .first()
         )
         if not settings:
+            logger.warning(
+                "SSE POST: Depends user %s has no access to connector %s",
+                current_user.id,
+                connector_id,
+            )
             raise HTTPException(status_code=403, detail="Нет доступа к этому коннектору")
     else:
+        logger.warning(
+            "SSE POST: missing Authorization header for connector %s",
+            connector_id,
+        )
         raise HTTPException(status_code=401, detail="Требуется авторизация")
 
     await sse_manager.send(connector_id, payload)
+    logger.info("SSE POST: event dispatched to connector %s", connector_id)
     return {"status": "ok"}
 
 @app.get("/mcp/tools")
