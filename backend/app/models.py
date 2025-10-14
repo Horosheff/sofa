@@ -40,6 +40,7 @@ class UserSettings(Base):
     wordstat_redirect_uri = Column(String, nullable=True)
     wordstat_access_token = Column(Text, nullable=True)  # Зашифрованный токен
     wordstat_refresh_token = Column(Text, nullable=True)  # Зашифрованный токен
+    wordstat_token_expires = Column(DateTime, nullable=True)  # Время истечения токена
     
     # MCP SSE настройки
     mcp_sse_url = Column(String, nullable=True)

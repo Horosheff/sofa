@@ -1971,15 +1971,18 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
         else:
             redirect_uri = "https://mcp-kv.ru/dashboard"
         
+        logger.info(f"OAuth callback: redirect_uri={redirect_uri}, client_id={settings.wordstat_client_id}")
+        
         async with httpx.AsyncClient() as client:
+            # Согласно схеме: code, client_id, grant_type, redirect_uri, client_secret
             token_response = await client.post(
                 "https://oauth.yandex.ru/token",
                 data={
-                    "grant_type": "authorization_code",
                     "code": code,
                     "client_id": settings.wordstat_client_id,
-                    "client_secret": settings.wordstat_client_secret,
-                    "redirect_uri": redirect_uri
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                    "client_secret": settings.wordstat_client_secret
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=30.0
@@ -1998,20 +2001,28 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
             
             token_data = token_response.json()
             access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 3600)
             
             if not access_token:
                 raise HTTPException(status_code=400, detail="No access token received")
             
-            # Сохраняем токен в базу данных
+            # Сохраняем токены в базу данных
             settings.wordstat_access_token = access_token
+            if refresh_token:
+                settings.wordstat_refresh_token = refresh_token
+            if expires_in:
+                settings.wordstat_token_expires = datetime.utcnow() + timedelta(seconds=expires_in)
+            
             db.commit()
             
-            logger.info(f"OAuth token saved for user {current_user.email}")
+            logger.info(f"OAuth tokens saved for user {current_user.email}")
             
             return {
                 "success": True,
                 "access_token": access_token,
-                "expires_in": token_data.get("expires_in", 3600)
+                "refresh_token": refresh_token,
+                "expires_in": expires_in
             }
             
     except HTTPException:
@@ -2020,6 +2031,57 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
         logger.error(f"OAuth callback error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
+@app.post("/api/wordstat/refresh-token")
+async def wordstat_refresh_token(current_user: User = Depends(get_current_user)):
+    """Обновить токен доступа Wordstat"""
+    try:
+        settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+        if not settings or not settings.wordstat_refresh_token:
+            raise HTTPException(status_code=400, detail="Refresh token not available")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://oauth.yandex.ru/token",
+                data={
+                    "client_id": settings.wordstat_client_id,
+                    "grant_type": "refresh_token",
+                    "client_secret": settings.wordstat_client_secret,
+                    "refresh_token": settings.wordstat_refresh_token
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+                
+                # Обновляем токены
+                settings.wordstat_access_token = access_token
+                if refresh_token:
+                    settings.wordstat_refresh_token = refresh_token
+                if expires_in:
+                    settings.wordstat_token_expires = datetime.utcnow() + timedelta(seconds=expires_in)
+                
+                db.commit()
+                
+                return {
+                    "success": True,
+                    "access_token": access_token,
+                    "expires_in": expires_in
+                }
+            else:
+                logger.error(f"Wordstat refresh token error: {response.text}")
+                raise HTTPException(status_code=400, detail="Failed to refresh token")
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Wordstat refresh token error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/wordstat/user-info")
 async def wordstat_user_info(current_user: User = Depends(get_current_user)):
