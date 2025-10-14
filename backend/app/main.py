@@ -1385,6 +1385,7 @@ async def oauth_token(request: Request):
                 if ':' in decoded:
                     client_id, client_secret = decoded.split(':', 1)
                     logger.info(f"OAuth token: client_id from Basic Auth: {client_id}")
+                    logger.info(f"OAuth token: client_secret length from Basic Auth: {len(client_secret)}")
             except Exception as e:
                 logger.warning(f"Failed to decode Basic Auth: {e}")
         
@@ -1399,9 +1400,14 @@ async def oauth_token(request: Request):
             logger.warning(f"OAuth token: client {client_id} not found")
             raise HTTPException(status_code=400, detail="invalid_client")
         
+        logger.info(f"OAuth token: stored client_secret length: {len(client['client_secret'])}")
+        logger.info(f"OAuth token: provided client_secret: {client_secret[:10] if client_secret else 'None'}...")
+        logger.info(f"OAuth token: stored client_secret: {client['client_secret'][:10]}...")
+        
         # ChatGPT может не отправлять client_secret для public clients
         if client_secret and client["client_secret"] != client_secret:
             logger.warning(f"OAuth token: client_secret mismatch for {client_id}")
+            logger.warning(f"OAuth token: expected '{client['client_secret']}' but got '{client_secret}'")
             raise HTTPException(status_code=400, detail="invalid_client")
         
         token = oauth_store.exchange_code(code, client_id, code_verifier)
