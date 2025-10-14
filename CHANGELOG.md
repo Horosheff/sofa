@@ -164,7 +164,7 @@ Successfully tested and working with:
 
 ### 🔗 Links
 
-- **Repository**: https://github.com/Horosheff/sofa
+- **Repository**: https://github.com/Horosheff/sofiya
 - **Server**: https://mcp-kv.ru
 - **MCP Manifest**: https://mcp-kv.ru/.well-known/mcp.json
 
@@ -194,5 +194,5 @@ Successfully tested and working with:
 
 ---
 
-**Full Changelog**: https://github.com/Horosheff/sofa/commits/v1.0.0
+**Full Changelog**: https://github.com/Horosheff/sofiya/commits/v1.0.0
 

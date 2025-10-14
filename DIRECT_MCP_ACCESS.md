@@ -98,4 +98,4 @@ curl -N -H "Authorization: Bearer YOUR_JWT_TOKEN" \
 1. Проверь, что токен не истек
 2. Убедись, что connector_id правильный
 3. Проверь настройки WordPress/Wordstat
-4. Посмотри логи: `journalctl -u sofa-backend -f`
+4. Посмотри логи: `journalctl -u sofiya-backend -f`
