@@ -548,7 +548,8 @@ async def send_sse_event_oauth(
             }
         }
         logger.info("SSE POST: Responding to initialize with: %s", json.dumps(response))
-        await sse_manager.send(connector_id, response)
+        # ChatGPT ожидает ответ напрямую в HTTP response, а не через SSE
+        return response
     elif method == "tools/list":
         tools = [
             # WordPress Posts
@@ -594,7 +595,8 @@ async def send_sse_event_oauth(
             }
         }
         logger.info("SSE POST: Responding to tools/list with %d tools", len(tools))
-        await sse_manager.send(connector_id, response)
+        # ChatGPT ожидает ответ напрямую в HTTP response
+        return response
     elif method == "tools/call":
         tool_name = payload.get("params", {}).get("name")
         tool_args = payload.get("params", {}).get("arguments", {})
@@ -1037,7 +1039,8 @@ async def send_sse_event_oauth(
                 }
             }
             logger.info("SSE POST: tools/call %s successful", tool_name)
-            await sse_manager.send(connector_id, response)
+            # ChatGPT ожидает ответ напрямую в HTTP response
+            return response
             
         except Exception as e:
             logger.error("SSE POST: tools/call %s failed: %s", tool_name, str(e))
@@ -1049,7 +1052,7 @@ async def send_sse_event_oauth(
                     "message": f"Ошибка выполнения: {str(e)}"
                 }
             }
-            await sse_manager.send(connector_id, error_response)
+            return error_response
     else:
         logger.info("SSE POST /mcp/sse: event dispatched to connector %s", connector_id)
         await sse_manager.send(connector_id, payload)
