@@ -70,6 +70,7 @@ export default function SettingsPanel() {
     mcp_sse_url: watch('mcp_sse_url'),
     mcp_connector_id: watch('mcp_connector_id'),
     wordstat_client_id: watch('wordstat_client_id'),
+    wordstat_redirect_uri: watch('wordstat_redirect_uri'),
   }
 
   useEffect(() => {
@@ -116,12 +117,14 @@ export default function SettingsPanel() {
     loadSettings()
   }, [token, reset])
 
-  // Генерируем OAuth URL когда изменяется client_id
+  // Генерируем OAuth URL когда изменяется client_id или redirect_uri
   useEffect(() => {
     if (watchValues.wordstat_client_id) {
-      const redirectUri = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000/dashboard'
-        : 'https://mcp-kv.ru/dashboard';
+      // Используем redirect_uri из настроек, если он заполнен, иначе используем дефолтный
+      const redirectUri = (watchValues.wordstat_redirect_uri && watchValues.wordstat_redirect_uri.trim()) || 
+        (window.location.hostname === 'localhost' 
+          ? 'http://localhost:3000/dashboard'
+          : 'https://mcp-kv.ru/dashboard');
       
       const params = new URLSearchParams({
         client_id: watchValues.wordstat_client_id,
@@ -131,7 +134,7 @@ export default function SettingsPanel() {
       
       setAuthUrl(`https://oauth.yandex.ru/authorize?${params.toString()}`);
     }
-  }, [watchValues.wordstat_client_id])
+  }, [watchValues.wordstat_client_id, watchValues.wordstat_redirect_uri])
 
   const onSubmit = async (data: SettingsFormData) => {
     if (!token) {
@@ -308,6 +311,17 @@ export default function SettingsPanel() {
               onChange={(value) => setValue('wordstat_client_secret', value, { shouldDirty: true })}
               placeholder="••••••••"
             />
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-white/80 mb-2">
+                Redirect URI
+              </label>
+              <input
+                {...register('wordstat_redirect_uri')}
+                type="url"
+                className="modern-input w-full"
+                placeholder="https://example.com/callback"
+              />
+            </div>
           </div>
 
           {/* OAuth Section */}
