@@ -526,9 +526,44 @@ async def send_sse_event_oauth(
             raise HTTPException(status_code=404, detail="Коннектор не найден")
         connector_id = settings.mcp_connector_id
     
-    logger.info("SSE POST /mcp/sse: event dispatched to connector %s", connector_id)
-    await sse_manager.send(connector_id, payload)
-    return {"status": "ok"}
+    logger.info("SSE POST /mcp/sse received from connector %s: %s", connector_id, json.dumps(payload))
+    
+    # Handle JSON-RPC requests
+    method = payload.get("method")
+    request_id = payload.get("id")
+    
+    if method == "initialize":
+        response = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {
+                    "tools": {}
+                },
+                "serverInfo": {
+                    "name": "WordPress MCP Server",
+                    "version": "1.0.0"
+                }
+            }
+        }
+        logger.info("SSE POST: Responding to initialize with: %s", json.dumps(response))
+        await sse_manager.send(connector_id, response)
+    elif method == "tools/list":
+        response = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "tools": []
+            }
+        }
+        logger.info("SSE POST: Responding to tools/list")
+        await sse_manager.send(connector_id, response)
+    else:
+        logger.info("SSE POST /mcp/sse: event dispatched to connector %s", connector_id)
+        await sse_manager.send(connector_id, payload)
+    
+    return {}
 
 
 @app.get("/mcp/sse/{connector_id}")
