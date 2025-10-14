@@ -1534,7 +1534,7 @@ async def send_sse_event(
 
 📋 Ваши настройки:
 - Client ID: {settings.wordstat_client_id}
-- Client Secret: {'✓ установлен' if settings.wordstat_client_secret else '✗ отсутствует'}
+- Client Secret: {settings.wordstat_client_secret or '✗ отсутствует'}
 - Redirect URI: {settings.wordstat_redirect_uri or 'не установлен'}
 
 🔐 Получение Access Token:
