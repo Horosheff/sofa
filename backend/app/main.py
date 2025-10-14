@@ -449,17 +449,28 @@ async def sse_endpoint(
 async def send_sse_event(
     connector_id: str,
     payload: Dict,
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: Optional[User] = Depends(lambda: None),
     db: Session = Depends(get_db)
 ):
-    settings = (
-        db.query(UserSettings)
-        .filter(UserSettings.user_id == current_user.id)
-        .filter(UserSettings.mcp_connector_id == connector_id)
-        .first()
-    )
-    if not settings:
-        raise HTTPException(status_code=403, detail="Нет доступа к этому коннектору")
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1]
+        token_connector = oauth_store.get_connector_by_token(token)
+        if not token_connector:
+            raise HTTPException(status_code=401, detail="Недействительный токен")
+        connector_id = token_connector
+    elif current_user:
+        settings = (
+            db.query(UserSettings)
+            .filter(UserSettings.user_id == current_user.id)
+            .filter(UserSettings.mcp_connector_id == connector_id)
+            .first()
+        )
+        if not settings:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому коннектору")
+    else:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
 
     await sse_manager.send(connector_id, payload)
     return {"status": "ok"}
