@@ -670,6 +670,52 @@ async def openid_config():
     }
 
 
+@app.get("/.well-known/oauth-authorization-server")
+async def oauth_authorization_server():
+    return {
+        "issuer": "https://mcp-kv.ru",
+        "authorization_endpoint": "https://mcp-kv.ru/oauth/authorize",
+        "token_endpoint": "https://mcp-kv.ru/oauth/token",
+        "registration_endpoint": "https://mcp-kv.ru/oauth/register",
+        "scopes_supported": ["mcp"],
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code"],
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+    }
+
+
+@app.get("/.well-known/oauth-protected-resource")
+async def oauth_protected_resource():
+    return {
+        "resource": "https://mcp-kv.ru/mcp/sse",
+        "authorization_servers": ["https://mcp-kv.ru"]
+    }
+
+
+@app.post("/oauth/register")
+async def oauth_register(request: Request):
+    """Dynamic client registration (RFC 7591)"""
+    body = await request.json()
+    client_id = secrets.token_urlsafe(16)
+    client_secret = secrets.token_urlsafe(32)
+    
+    oauth_store.clients[client_id] = {
+        "name": body.get("client_name", "unknown"),
+        "client_secret": client_secret,
+        "redirect_uris": body.get("redirect_uris", []),
+        "connector_id": "",
+    }
+    
+    logger.info("OAuth client registered: %s (%s)", client_id, body.get("client_name"))
+    
+    return {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "client_id_issued_at": int(datetime.utcnow().timestamp()),
+        "client_secret_expires_at": 0,  # Never expires
+    }
+
+
 @app.get("/.well-known/mcp.json")
 async def mcp_manifest():
     return {
