@@ -1314,7 +1314,7 @@ async def send_sse_event(
         logger.info("SSE POST: tools/call using settings for user %s - WordPress: %s, Wordstat: %s", 
                    user.email, 
                    "configured" if settings.wordpress_url else "not configured",
-                   "configured" if settings.wordstat_token else "not configured")
+                   "configured" if settings.wordstat_access_token else "not configured")
         
         # Handle tool calls
         try:
