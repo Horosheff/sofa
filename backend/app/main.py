@@ -575,6 +575,23 @@ async def openid_config():
     }
 
 
+@app.get("/.well-known/mcp.json")
+async def mcp_manifest():
+    return {
+        "mcpServers": {
+            "wordpress-mcp": {
+                "url": "https://mcp-kv.ru/mcp/sse/{connector_id}",
+                "transport": "sse",
+                "authMethod": {
+                    "type": "oauth",
+                    "authorizationUrl": "https://mcp-kv.ru/oauth/authorize",
+                    "tokenUrl": "https://mcp-kv.ru/oauth/token",
+                }
+            }
+        }
+    }
+
+
 @app.get("/oauth/authorize", response_class=HTMLResponse)
 async def oauth_authorize(client_id: str, redirect_uri: str, state: Optional[str] = None):
     if client_id not in oauth_store.clients:
