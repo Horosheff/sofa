@@ -595,6 +595,105 @@ async def send_sse_event_oauth(
         }
         logger.info("SSE POST: Responding to tools/list with %d tools", len(tools))
         await sse_manager.send(connector_id, response)
+    elif method == "tools/call":
+        tool_name = payload.get("params", {}).get("name")
+        tool_args = payload.get("params", {}).get("arguments", {})
+        
+        logger.info("SSE POST: tools/call %s with args: %s", tool_name, tool_args)
+        
+        # Получаем настройки пользователя
+        settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
+        if not settings:
+            error_response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32603,
+                    "message": "Настройки пользователя не найдены"
+                }
+            }
+            await sse_manager.send(connector_id, error_response)
+            return {}
+        
+        try:
+            result_content = None
+            
+            if tool_name == "wordpress_get_posts":
+                # Вызываем WordPress REST API
+                wp_url = settings.wordpress_url.rstrip("/")
+                wp_user = settings.wordpress_username
+                wp_pass = settings.wordpress_password
+                
+                per_page = tool_args.get("per_page", 10)
+                status = tool_args.get("status", "any")
+                
+                async with httpx.AsyncClient() as client:
+                    auth = (wp_user, wp_pass) if wp_user and wp_pass else None
+                    resp = await client.get(
+                        f"{wp_url}/wp-json/wp/v2/posts",
+                        params={"per_page": per_page, "status": status},
+                        auth=auth,
+                        timeout=30.0
+                    )
+                    resp.raise_for_status()
+                    posts = resp.json()
+                    
+                    result_content = f"Найдено {len(posts)} постов:\n\n"
+                    for post in posts:
+                        result_content += f"ID: {post['id']}\n"
+                        result_content += f"Название: {post['title']['rendered']}\n"
+                        result_content += f"Статус: {post['status']}\n"
+                        result_content += f"Дата: {post['date']}\n\n"
+            
+            elif tool_name == "wordpress_create_post":
+                wp_url = settings.wordpress_url.rstrip("/")
+                wp_user = settings.wordpress_username
+                wp_pass = settings.wordpress_password
+                
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        f"{wp_url}/wp-json/wp/v2/posts",
+                        json={
+                            "title": tool_args.get("title"),
+                            "content": tool_args.get("content"),
+                            "status": tool_args.get("status", "draft")
+                        },
+                        auth=(wp_user, wp_pass),
+                        timeout=30.0
+                    )
+                    resp.raise_for_status()
+                    post = resp.json()
+                    result_content = f"Пост создан успешно!\nID: {post['id']}\nНазвание: {post['title']['rendered']}\nСтатус: {post['status']}"
+            
+            else:
+                result_content = f"Инструмент '{tool_name}' пока не реализован. Доступны: wordpress_get_posts, wordpress_create_post"
+            
+            response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": result_content
+                        }
+                    ]
+                }
+            }
+            logger.info("SSE POST: tools/call %s successful", tool_name)
+            await sse_manager.send(connector_id, response)
+            
+        except Exception as e:
+            logger.error("SSE POST: tools/call %s failed: %s", tool_name, str(e))
+            error_response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32603,
+                    "message": f"Ошибка выполнения: {str(e)}"
+                }
+            }
+            await sse_manager.send(connector_id, error_response)
     else:
         logger.info("SSE POST /mcp/sse: event dispatched to connector %s", connector_id)
         await sse_manager.send(connector_id, payload)
