@@ -1975,20 +1975,28 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
         
         logger.info(f"OAuth callback: redirect_uri={redirect_uri}, client_id={settings.wordstat_client_id}")
         
+        # Подготавливаем данные для запроса
+        token_data = {
+            "code": code,
+            "client_id": settings.wordstat_client_id,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+            "client_secret": settings.wordstat_client_secret
+        }
+        
+        logger.info(f"Token request data: {token_data}")
+        
         async with httpx.AsyncClient() as client:
             # Согласно схеме: code, client_id, grant_type, redirect_uri, client_secret
             token_response = await client.post(
                 "https://oauth.yandex.ru/token",
-                data={
-                    "code": code,
-                    "client_id": settings.wordstat_client_id,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": redirect_uri,
-                    "client_secret": settings.wordstat_client_secret
-                },
+                data=token_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=30.0
             )
+            
+            logger.info(f"Yandex OAuth response status: {token_response.status_code}")
+            logger.info(f"Yandex OAuth response text: {token_response.text}")
             
             if token_response.status_code != 200:
                 logger.error(f"Yandex OAuth token error: {token_response.text}")
