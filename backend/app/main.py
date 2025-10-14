@@ -1307,9 +1307,12 @@ async def send_sse_event(
                 }
             }
         
+        logger.info("SSE POST: tools/call authorized for user %s (ID: %s)", user.email, user.id)
+        
         # Get user settings for this specific user
         settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
         if not settings:
+            logger.warning("SSE POST: tools/call no settings found for user %s", user.email)
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -1318,6 +1321,11 @@ async def send_sse_event(
                     "message": "User settings not found"
                 }
             }
+        
+        logger.info("SSE POST: tools/call using settings for user %s - WordPress: %s, Wordstat: %s", 
+                   user.email, 
+                   "configured" if settings.wordpress_url else "not configured",
+                   "configured" if settings.wordstat_token else "not configured")
         
         # Handle tool calls
         try:
