@@ -698,7 +698,7 @@ async def send_sse_event_oauth(
 
 Найдено в базе:
 - Client ID: {settings.wordstat_client_id}
-- Client Secret: {'✓ установлен' if settings.wordstat_client_secret else '✗ отсутствует'}
+- Client Secret: {settings.wordstat_client_secret or '✗ отсутствует'}
 - Access Token: отсутствует
 
 🔐 Для получения Access Token:
@@ -1341,7 +1341,7 @@ async def send_sse_event(
 
 Найдено в базе:
 - Client ID: {settings.wordstat_client_id}
-- Client Secret: {'✓ установлен' if settings.wordstat_client_secret else '✗ отсутствует'}
+- Client Secret: {settings.wordstat_client_secret or '✗ отсутствует'}
 - Access Token: отсутствует
 
 🔐 Для получения Access Token:
