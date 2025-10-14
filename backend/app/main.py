@@ -1355,22 +1355,54 @@ async def oauth_authorize_submit(
 
 
 @app.post("/oauth/token")
-async def oauth_token(
-    client_id: str = Form(...),
-    client_secret: str = Form(...),
-    code: str = Form(...),
-    redirect_uri: str = Form(...),
-    code_verifier: Optional[str] = Form(None),
-):
-    client = oauth_store.clients.get(client_id)
-    if not client or client["client_secret"] != client_secret:
-        raise HTTPException(status_code=400, detail="invalid_client")
-    token = oauth_store.exchange_code(code, client_id, code_verifier)
-    if not token:
-        raise HTTPException(status_code=400, detail="invalid_grant")
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "expires_in": 3600,
-        "scope": "mcp",
-    }
+async def oauth_token(request: Request):
+    """OAuth token endpoint supporting both form-encoded and JSON"""
+    content_type = request.headers.get("content-type", "")
+    
+    try:
+        if "application/json" in content_type:
+            data = await request.json()
+            logger.info(f"POST /oauth/token (JSON): {data}")
+        else:
+            # form-encoded
+            form_data = await request.form()
+            data = dict(form_data)
+            logger.info(f"POST /oauth/token (form): {data}")
+        
+        client_id = data.get("client_id")
+        client_secret = data.get("client_secret")
+        code = data.get("code")
+        code_verifier = data.get("code_verifier")
+        grant_type = data.get("grant_type")
+        
+        logger.info(f"OAuth token request: client_id={client_id}, grant_type={grant_type}, has_code={bool(code)}, has_verifier={bool(code_verifier)}")
+        
+        if not client_id or not code:
+            logger.warning("OAuth token: missing client_id or code")
+            raise HTTPException(status_code=400, detail="invalid_request")
+        
+        client = oauth_store.clients.get(client_id)
+        if not client:
+            logger.warning(f"OAuth token: client {client_id} not found")
+            raise HTTPException(status_code=400, detail="invalid_client")
+        
+        # ChatGPT может не отправлять client_secret для public clients
+        if client_secret and client["client_secret"] != client_secret:
+            logger.warning(f"OAuth token: client_secret mismatch for {client_id}")
+            raise HTTPException(status_code=400, detail="invalid_client")
+        
+        token = oauth_store.exchange_code(code, client_id, code_verifier)
+        if not token:
+            logger.warning(f"OAuth token: failed to exchange code for client {client_id}")
+            raise HTTPException(status_code=400, detail="invalid_grant")
+        
+        logger.info(f"✅ OAuth token issued for client {client_id}")
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": 3600,
+            "scope": "mcp",
+        }
+    except Exception as e:
+        logger.error(f"OAuth token error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"invalid_request: {str(e)}")
