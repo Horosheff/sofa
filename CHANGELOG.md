@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-10-14
+
+### 🚀 Direct Access Edition
+
+Major release with direct MCP connector access, full JSON-RPC support, and enhanced user experience.
+
+### ✨ New Features
+
+#### Direct MCP Access
+- **Direct Connector URLs**: Connect without OAuth using `https://mcp-kv.ru/mcp/sse/{connector_id}`
+- **No Authorization Required**: Direct access for trusted connectors
+- **JWT Token Support**: Long-lived tokens for persistent connections
+- **Personal MCP Manifests**: User-specific manifests with pre-configured tokens
+
+#### Enhanced JSON-RPC Support
+- **Complete Protocol Implementation**: Full initialize, tools/list, tools/call support
+- **Direct HTTP Responses**: ChatGPT-compatible response handling
+- **25 Powerful Tools**: WordPress (15) + Yandex Wordstat (10) integration
+- **Improved Error Handling**: Better diagnostics and user guidance
+
+#### Technical Improvements
+- **Fixed Syntax Errors**: Resolved tools array formatting issues
+- **Enhanced Logging**: Better request/response tracking
+- **Improved SSE**: Better Server-Sent Events handling
+- **MCP Protocol Compliance**: Full adherence to MCP specifications
+
+### 📚 Documentation
+- **DIRECT_MCP_ACCESS.md**: Complete direct connection guide
+- **Enhanced README**: Updated setup and usage instructions
+- **Comprehensive CHANGELOG**: Detailed version history
+
+### 🎯 Usage Options
+
+#### Direct Connection (Recommended)
+```
+https://mcp-kv.ru/mcp/sse/{your-connector-id}
+```
+
+#### OAuth Connection
+```
+https://mcp-kv.ru/.well-known/mcp.json
+```
+
+### 🛠️ Available Tools
+- **WordPress Management**: 15 tools for posts, pages, media, users, comments
+- **Yandex Wordstat**: 10 tools for keyword research and analytics
+
+### 🚀 Production Ready
+This release is stable and ready for production use with ChatGPT, Make.com, and other MCP clients.
+
 ## [1.0.0] - 2025-10-14
 
 ### 🎉 First Stable Release
