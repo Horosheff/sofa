@@ -710,172 +710,243 @@ async def send_sse_event_oauth(
 4. Используйте wordstat_set_token с полученным токеном"""
                 
                 else:
-                    # Есть токен - пробуем получить информацию через Live4 Reports API
+                    # Есть токен - проверяем через API v1 /userInfo
                     try:
                         async with httpx.AsyncClient() as client:
-                            # Используем метод Live/GetWordstatReportList для проверки токена
                             resp = await client.post(
-                                "https://api.direct.yandex.com/live/v4/json/",
+                                "https://api.wordstat.yandex.net/v1/userInfo",
                                 headers={
-                                    "Accept-Language": "ru",
-                                    "Content-Type": "application/json"
-                                },
-                                json={
-                                    "method": "GetWordstatReportList",
-                                    "token": settings.wordstat_access_token
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
                                 },
                                 timeout=30.0
                             )
                             
-                            logger.info(f"Wordstat API response status: {resp.status_code}")
-                            logger.info(f"Wordstat API response: {resp.text[:500]}")
+                            logger.info(f"Wordstat API /v1/userInfo status: {resp.status_code}")
+                            logger.info(f"Wordstat API /v1/userInfo response: {resp.text[:500]}")
                             
                             if resp.status_code == 200:
                                 data = resp.json()
                                 
-                                # Проверяем, есть ли ошибка в ответе
-                                if "error_code" in data or "error_str" in data:
-                                    error_code = data.get("error_code", "unknown")
-                                    error_msg = data.get("error_str", data.get("error_detail", "Неизвестная ошибка"))
-                                    
-                                    result_content = f"""❌ Ошибка API Wordstat:
-Код ошибки: {error_code}
-Сообщение: {error_msg}
-
-🔧 Возможные причины:
-1. Токен недействителен или истёк
-2. Аккаунт не имеет доступа к Яндекс.Директ/Wordstat
-3. Токен был получен для другого приложения
-
-📋 Что делать:
-1. Получите новый токен через: 
-   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id if settings.wordstat_client_id else 'ВАШ_CLIENT_ID'}
-
-2. Убедитесь, что аккаунт имеет доступ к Wordstat
-3. Используйте wordstat_set_token для сохранения нового токена"""
-                                
-                                elif "data" in data:
-                                    # Успешный ответ
-                                    reports = data.get("data", [])
+                                if "userInfo" in data:
+                                    user_info = data["userInfo"]
                                     result_content = f"""✅ Подключение к Wordstat успешно!
 
-📊 Информация о токене:
-- Статус: активен
-- Доступ к API: есть
-- Количество отчетов: {len(reports)}
+📊 Информация о пользователе:
+- Логин: {user_info.get('login', 'N/A')}
+- Лимит запросов в секунду: {user_info.get('limitPerSecond', 'N/A')}
+- Дневной лимит: {user_info.get('dailyLimit', 'N/A')}
+- Осталось запросов сегодня: {user_info.get('dailyLimitRemaining', 'N/A')}
 
 🎉 Можете использовать все инструменты Wordstat!
 • wordstat_get_top_requests - топ запросов
-• wordstat_get_regions_tree - регионы
-• wordstat_get_dynamics - динамика"""
+• wordstat_get_regions_tree - дерево регионов
+• wordstat_get_dynamics - динамика запросов
+• wordstat_get_regions - распределение по регионам"""
                                 
                                 else:
                                     result_content = f"""⚠️ Необычный ответ от API:
 {json.dumps(data, indent=2, ensure_ascii=False)}"""
                             
+                            elif resp.status_code == 401:
+                                result_content = f"""❌ Токен недействителен (401 Unauthorized)
+
+🔧 Причины:
+1. Токен устарел или неправильный
+2. Токен был получен для другого приложения
+3. У аккаунта нет доступа к Wordstat API
+
+📋 Что делать:
+1. Получите новый токен через: 
+   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id if settings.wordstat_client_id else 'c654b948515a4a07a4c89648a0831d40'}
+
+2. Убедитесь, что:
+   - Авторизуетесь под правильным аккаунтом Яндекса
+   - У аккаунта есть доступ к Wordstat
+   - Client ID правильный"""
+                            
                             else:
                                 result_content = f"""❌ HTTP ошибка {resp.status_code}:
 {resp.text}
 
-Токен может быть недействительным. Получите новый через wordstat_auto_setup."""
+Попробуйте получить новый токен через wordstat_auto_setup."""
                     
                     except Exception as e:
                         result_content = f"""❌ Ошибка при подключении к Wordstat API:
 {str(e)}
 
-Проверьте:
-1. Токен правильный?
-2. Есть ли доступ к интернету?
-3. Аккаунт имеет доступ к Яндекс.Директ?"""
+Проверьте интернет-соединение или попробуйте позже."""
             
             elif tool_name == "wordstat_get_regions_tree":
-                # Получаем дерево регионов
-                result_content = """Дерево регионов Yandex Wordstat:
-
-Россия (ID: 225)
-├── Москва (ID: 213)
-├── Санкт-Петербург (ID: 2)
-├── Новосибирск (ID: 65)
-├── Екатеринбург (ID: 54)
-├── Казань (ID: 43)
-└── Нижний Новгород (ID: 47)
-
-Украина (ID: 187)
-├── Киев (ID: 143)
-├── Харьков (ID: 147)
-└── Одесса (ID: 145)
-
-Используйте ID региона для получения статистики."""
-            
-            elif tool_name == "wordstat_get_top_requests":
-                # Получаем топ запросов
-                query = tool_args.get("query")
-                region_id = tool_args.get("region_id", 225)  # По умолчанию Россия
-                
+                # Получаем дерево регионов через API v1
                 if not settings.wordstat_access_token:
-                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
                 else:
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.post(
-                            "https://api-sandbox.direct.yandex.ru/v4/json/",
-                            json={
-                                "method": "CreateNewWordstatReport",
-                                "param": {
-                                    "Phrases": [query],
-                                    "GeoID": [region_id]
-                                },
-                                "token": settings.wordstat_access_token
-                            },
-                            timeout=30.0
-                        )
-                        resp.raise_for_status()
-                        data = resp.json()
-                        
-                        if "data" in data:
-                            report_id = data["data"]
-                            # Получаем отчет
-                            await asyncio.sleep(2)  # Ждем формирования отчета
-                            
-                            resp2 = await client.post(
-                                "https://api-sandbox.direct.yandex.ru/v4/json/",
-                                json={
-                                    "method": "GetWordstatReport",
-                                    "param": report_id,
-                                    "token": settings.wordstat_access_token
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/getRegionsTree",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
                                 },
                                 timeout=30.0
                             )
-                            resp2.raise_for_status()
-                            report = resp2.json()
                             
-                            result_content = f"Топ запросов для '{query}' (регион {region_id}):\n\n"
-                            if "data" in report and report["data"]:
-                                for item in report["data"][0].get("SearchedWith", [])[:10]:
-                                    result_content += f"• {item['Phrase']}: {item['Shows']} показов\n"
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                result_content = f"""✅ Дерево регионов Yandex Wordstat:
+
+{json.dumps(data, indent=2, ensure_ascii=False)}
+
+💡 Используйте ID регионов для других запросов."""
                             else:
-                                result_content += "Данные еще формируются или запрос не найден."
-                        else:
-                            result_content = f"Ошибка создания отчета: {data}"
+                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
+            
+            elif tool_name == "wordstat_get_top_requests":
+                # Получаем топ запросов через API v1
+                query = tool_args.get("query")
+                num_phrases = tool_args.get("num_phrases", 50)
+                regions = tool_args.get("regions", [225])  # По умолчанию Россия
+                devices = tool_args.get("devices", ["all"])
+                
+                if not query:
+                    result_content = "❌ Ошибка: не указана фраза для поиска (параметр 'query')"
+                elif not settings.wordstat_access_token:
+                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
+                else:
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/topRequests",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                json={
+                                    "phrase": query,
+                                    "numPhrases": num_phrases,
+                                    "regions": regions if isinstance(regions, list) else [regions],
+                                    "devices": devices
+                                },
+                                timeout=30.0
+                            )
+                            
+                            logger.info(f"Wordstat topRequests status: {resp.status_code}")
+                            logger.info(f"Wordstat topRequests response: {resp.text[:500]}")
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                
+                                result_content = f"""✅ Топ запросов для '{data.get('requestPhrase', query)}'
+                                
+📊 Общее число запросов: {data.get('totalCount', 0)}
+
+🔝 Самые популярные запросы:"""
+                                
+                                for idx, item in enumerate(data.get('topRequests', [])[:10], 1):
+                                    result_content += f"\n{idx}. {item['phrase']}: {item['count']} показов"
+                                
+                                if data.get('associations'):
+                                    result_content += "\n\n🔗 Похожие запросы:"
+                                    for idx, item in enumerate(data.get('associations', [])[:5], 1):
+                                        result_content += f"\n{idx}. {item['phrase']}: {item['count']} показов"
+                            else:
+                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
             
             elif tool_name == "wordstat_get_dynamics":
-                # Получаем динамику запросов
+                # Получаем динамику запросов через API v1
                 query = tool_args.get("query")
+                period = tool_args.get("period", "weekly")  # monthly, weekly, daily
+                from_date = tool_args.get("from_date")
+                to_date = tool_args.get("to_date")
+                regions = tool_args.get("regions", [225])
+                devices = tool_args.get("devices", ["all"])
                 
-                if not settings.wordstat_access_token:
-                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                if not query:
+                    result_content = "❌ Ошибка: не указана фраза (параметр 'query')"
+                elif not from_date:
+                    result_content = "❌ Ошибка: не указана дата начала (параметр 'from_date' в формате YYYY-MM-DD)"
+                elif not settings.wordstat_access_token:
+                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
                 else:
-                    result_content = f"Динамика запроса '{query}':\n\n"
-                    result_content += "Функция в разработке. Для получения динамики используйте метод CreateNewWordstatReport с параметром 'SearchedAlso'."
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            payload = {
+                                "phrase": query,
+                                "period": period,
+                                "fromDate": from_date,
+                                "regions": regions if isinstance(regions, list) else [regions],
+                                "devices": devices
+                            }
+                            if to_date:
+                                payload["toDate"] = to_date
+                            
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/dynamics",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                json=payload,
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                result_content = f"✅ Динамика запроса '{query}' (период: {period})\n\n"
+                                
+                                for item in data.get('dynamics', []):
+                                    result_content += f"📅 {item['date']}: {item['count']} запросов (доля: {item.get('share', 0):.4f}%)\n"
+                            else:
+                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
             
             elif tool_name == "wordstat_get_regions":
-                # Получаем статистику по регионам
+                # Получаем статистику по регионам через API v1
                 query = tool_args.get("query")
+                region_type = tool_args.get("region_type", "all")  # cities, regions, all
+                devices = tool_args.get("devices", ["all"])
                 
-                if not settings.wordstat_access_token:
-                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                if not query:
+                    result_content = "❌ Ошибка: не указана фраза (параметр 'query')"
+                elif not settings.wordstat_access_token:
+                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
                 else:
-                    result_content = f"Статистика по регионам для '{query}':\n\n"
-                    result_content += "Функция в разработке. Используйте wordstat_get_top_requests с разными region_id."
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/regions",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                json={
+                                    "phrase": query,
+                                    "regionType": region_type,
+                                    "devices": devices
+                                },
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                result_content = f"✅ Распределение по регионам для '{query}'\n\n"
+                                
+                                for item in data.get('regions', [])[:20]:
+                                    result_content += f"""📍 Регион ID {item['regionId']}:
+   Запросов: {item['count']}
+   Доля: {item['share']:.4f}%
+   Индекс интереса: {item['affinityIndex']:.2f}%\n"""
+                            else:
+                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
             
             elif tool_name == "wordstat_auto_setup":
                 # Автоматическая настройка с диагностикой
