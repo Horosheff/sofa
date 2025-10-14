@@ -117,11 +117,41 @@ export default function SettingsPanel() {
     loadSettings()
   }, [token, reset])
 
-  // Генерируем OAuth URL только после сохранения настроек
-  const generateOAuthUrl = () => {
-    if (watchValues.wordstat_client_id) {
-      // Используем redirect_uri из настроек, если он заполнен, иначе используем дефолтный
-      const redirectUri = (watchValues.wordstat_redirect_uri && watchValues.wordstat_redirect_uri.trim()) || 
+  // Генерируем OAuth URL и сохраняем настройки
+  const generateOAuthUrl = async () => {
+    if (!watchValues.wordstat_client_id) {
+      setMessage('Заполните Client ID')
+      return
+    }
+
+    setIsLoading(true)
+    setMessage('')
+
+    try {
+      // Сначала сохраняем настройки
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          wordstat_client_id: watchValues.wordstat_client_id,
+          wordstat_client_secret: watchValues.wordstat_client_secret,
+          wordstat_redirect_uri: watchValues.wordstat_redirect_uri,
+          timezone: 'UTC',
+          language: 'ru',
+        }),
+      })
+
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}))
+        throw new Error(detail?.detail || 'Неизвестная ошибка')
+      }
+
+      // После успешного сохранения генерируем OAuth URL
+      const currentRedirectUri = watchValues.wordstat_redirect_uri;
+      const redirectUri = (currentRedirectUri && currentRedirectUri.trim()) || 
         (window.location.hostname === 'localhost' 
           ? 'http://localhost:3000/dashboard'
           : 'https://mcp-kv.ru/dashboard');
@@ -133,6 +163,12 @@ export default function SettingsPanel() {
       });
       
       setAuthUrl(`https://oauth.yandex.ru/authorize?${params.toString()}`);
+      setMessage('✅ Настройки сохранены! OAuth ссылка сгенерирована.')
+      
+    } catch (error: any) {
+      setMessage('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -165,8 +201,6 @@ export default function SettingsPanel() {
       }
 
       setMessage('Настройки успешно сохранены!')
-      // Генерируем OAuth URL после успешного сохранения
-      generateOAuthUrl()
     } catch (error: any) {
       setMessage('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
     } finally {
@@ -323,6 +357,13 @@ export default function SettingsPanel() {
                 className="modern-input w-full"
                 placeholder="https://example.com/callback"
               />
+              <button
+                type="button"
+                onClick={generateOAuthUrl}
+                className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
+              >
+                💾 Сохранить и получить ссылку
+              </button>
             </div>
           </div>
 
