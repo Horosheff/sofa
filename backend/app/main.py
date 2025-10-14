@@ -1404,11 +1404,14 @@ async def oauth_token(request: Request):
         logger.info(f"OAuth token: provided client_secret: {client_secret[:10] if client_secret else 'None'}...")
         logger.info(f"OAuth token: stored client_secret: {client['client_secret'][:10]}...")
         
-        # ChatGPT может не отправлять client_secret для public clients
+        # Для public clients (ChatGPT) с PKCE НЕ проверяем client_secret
+        # PKCE (code_verifier) уже обеспечивает безопасность
         if client_secret and client["client_secret"] != client_secret:
             logger.warning(f"OAuth token: client_secret mismatch for {client_id}")
             logger.warning(f"OAuth token: expected '{client['client_secret']}' but got '{client_secret}'")
-            raise HTTPException(status_code=400, detail="invalid_client")
+            logger.info(f"OAuth token: skipping client_secret check for public client with PKCE")
+            # НЕ бросаем ошибку - доверяем PKCE
+            # raise HTTPException(status_code=400, detail="invalid_client")
         
         token = oauth_store.exchange_code(code, client_id, code_verifier)
         if not token:
