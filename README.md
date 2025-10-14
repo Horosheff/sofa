@@ -1,88 +1,159 @@
-# WordPress MCP Platform
+# 🚀 MCP WordPress & Wordstat Server
 
-Полнофункциональная платформа для управления WordPress через MCP (Model Context Protocol) с интеграцией Wordstat и Google сервисов.
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Horosheff/sofa/releases/tag/v1.0.0)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-2025--03--26-orange.svg)](https://modelcontextprotocol.io)
 
-## 🚀 Возможности
+A production-ready **Model Context Protocol (MCP) server** with OAuth 2.0, providing seamless integration between AI assistants (ChatGPT, Claude) and WordPress/Yandex Wordstat APIs.
 
-### 📝 WordPress управление
-- Создание, обновление, удаление постов
-- Управление категориями и медиафайлами
-- Массовые операции с контентом
-- Поиск и фильтрация контента
+## ✨ Features
 
-### 📊 Wordstat аналитика
-- Получение трендов поисковых запросов
-- Анализ региональной статистики
-- Топ запросы по ключевым словам
-- Динамика популярности запросов
+### 🔐 Full OAuth 2.0 Support
+- **PKCE** (Proof Key for Code Exchange) with S256
+- **Dynamic Client Registration** (RFC 7591)
+- Compatible with ChatGPT Connectors and Make.com
+- Multi-user support with isolated connectors
 
-### 🔍 Google MCP интеграция
-- Google Trends анализ
-- Объем поисковых запросов
-- Анализ ключевых слов
-- YouTube аналитика
+### 🛠️ 25 Powerful Tools
 
-### ⚙️ Настройки и подключения
-- Настройка WordPress подключений
-- Конфигурация Wordstat API
-- MCP SSE сервер для ChatGPT
-- Персонализация интерфейса
+#### WordPress (18 tools)
+- **Posts**: Create, update, read, delete, search, bulk operations
+- **Categories**: Full CRUD operations
+- **Media**: Upload from file or URL, manage library
+- **Comments**: Create, read, update, delete
 
-## 🛠️ Технологии
+#### Yandex Wordstat (7 tools)
+- **Analytics**: Top requests, dynamics, geographic distribution
+- **Management**: Token setup, user info, diagnostics
+- **Data**: Regions tree, search trends
 
-- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
-- **Backend**: FastAPI, Python 3.11, SQLAlchemy
-- **База данных**: SQLite (с возможностью миграции на PostgreSQL)
-- **Кэширование**: Redis
-- **Контейнеризация**: Docker, Docker Compose
-- **Аутентификация**: JWT токены
-- **Состояние**: Zustand с localStorage
+### 🌐 Real-Time Communication
+- **SSE (Server-Sent Events)** transport
+- **JSON-RPC 2.0** protocol
+- Automatic reconnection and keepalive
+- Per-user isolated sessions
 
-## 📦 Установка и запуск
+## 🚀 Quick Start
 
-### Локальная разработка
+### For End Users
 
-```bash
-# Клонирование репозитория
-git clone <repository-url>
-cd sofiya
+1. **Register** at [https://mcp-kv.ru](https://mcp-kv.ru)
+2. **Configure** your WordPress and/or Wordstat credentials
+3. **Copy** your unique connector URL
+4. **Add** to ChatGPT:
+   - Go to Settings → Connectors → Add Connector
+   - Enter URL: `https://mcp-kv.ru/.well-known/mcp.json`
+   - Authorize access
 
-# Установка зависимостей
-cd frontend && npm install
-cd ../backend && pip install -r requirements.txt
-
-# Запуск в режиме разработки
-cd frontend && npm run dev
-cd ../backend && python -m uvicorn app.main:app --reload
-```
-
-### Docker развертывание
+### For Developers
 
 ```bash
-# Клонирование и переход в директорию
-git clone <repository-url>
-cd sofiya
+# Clone repository
+git clone https://github.com/Horosheff/sofa.git
+cd sofa
 
-# Запуск всех сервисов
-docker-compose up -d
+# Backend setup
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python init_db.py
+uvicorn app.main:app --reload
 
-# Инициализация базы данных
-docker-compose exec backend python init_db.py
+# Frontend setup (new terminal)
+cd frontend
+npm install
+npm run dev
 ```
 
-### Продакшен развертывание
+Visit `http://localhost:3000` to access the dashboard.
 
-```bash
-# Использование скрипта развертывания
-chmod +x deploy.sh
-./deploy.sh
+## 📖 Documentation
+
+### MCP Server Manifest
+```
+GET https://mcp-kv.ru/.well-known/mcp.json
 ```
 
-## 🔧 Конфигурация
+Returns server metadata including OAuth endpoints and SSE URL.
 
-### Переменные окружения
+### OAuth Flow
+1. **Discovery**: Client fetches `/.well-known/oauth-authorization-server`
+2. **Registration**: `POST /oauth/register` with client metadata
+3. **Authorization**: User approves access at `/oauth/authorize`
+4. **Token Exchange**: `POST /oauth/token` with authorization code + PKCE verifier
+5. **Access**: Use bearer token to connect to `/mcp/sse`
 
-Создайте файл `.env` в корне проекта:
+### Available Tools
+
+<details>
+<summary><b>WordPress Tools (18)</b></summary>
+
+#### Posts
+- `wordpress_create_post` - Create a new blog post
+- `wordpress_update_post` - Update existing post
+- `wordpress_get_posts` - List posts with filters
+- `wordpress_delete_post` - Delete a post
+- `wordpress_search_posts` - Search by keywords
+- `wordpress_bulk_update_posts` - Update multiple posts at once
+
+#### Categories
+- `wordpress_create_category` - Create new category
+- `wordpress_get_categories` - List all categories
+- `wordpress_update_category` - Update category
+- `wordpress_delete_category` - Delete category
+
+#### Media
+- `wordpress_upload_media` - Upload file to media library
+- `wordpress_upload_image_from_url` - Import image from URL
+- `wordpress_get_media` - List media files
+- `wordpress_delete_media` - Delete media file
+
+#### Comments
+- `wordpress_create_comment` - Add comment to post
+- `wordpress_get_comments` - List comments
+- `wordpress_update_comment` - Update comment
+- `wordpress_delete_comment` - Delete comment
+
+</details>
+
+<details>
+<summary><b>Wordstat Tools (7)</b></summary>
+
+- `wordstat_set_token` - Configure API access token
+- `wordstat_get_user_info` - Check account status and quota
+- `wordstat_get_regions_tree` - Get available regions
+- `wordstat_get_top_requests` - Popular search queries
+- `wordstat_get_dynamics` - Query trends over time
+- `wordstat_get_regions` - Geographic query distribution
+- `wordstat_auto_setup` - Interactive configuration wizard
+
+</details>
+
+## 🏗️ Architecture
+
+```
+┌─────────────┐         ┌──────────────┐         ┌─────────────┐
+│   ChatGPT   │◄───────►│ Nginx Proxy  │◄───────►│   FastAPI   │
+│  (Client)   │  HTTPS  │  (SSL Term)  │  HTTP   │  (Backend)  │
+└─────────────┘         └──────────────┘         └──────┬──────┘
+                                                          │
+                        ┌──────────────┐         ┌───────▼──────┐
+                        │   Next.js    │         │   SQLite     │
+                        │  (Frontend)  │         │  (Database)  │
+                        └──────────────┘         └──────────────┘
+                               │
+                        ┌──────▼───────┐         ┌──────────────┐
+                        │  WordPress   │         │   Wordstat   │
+                        │     API      │         │     API      │
+                        └──────────────┘         └──────────────┘
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create `.env` file in backend directory:
 
 ```env
 # Database
@@ -90,130 +161,132 @@ DATABASE_URL=sqlite:///./app.db
 
 # Security
 SECRET_KEY=your-secret-key-here
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=1440
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
+# Server
+BASE_URL=https://mcp-kv.ru
 
-# Redis
-REDIS_URL=redis://redis:6379
-
-# MCP Server
-MCP_SERVER_URL=https://your-mcp-server.com
+# External APIs (optional)
+MCP_SERVER_URL=http://localhost:8080
 ```
 
-### Nginx конфигурация
+### Nginx Configuration
 
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
+See `DEPLOYMENT.md` for full Nginx setup with SSL.
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+Key configuration points:
+- HTTPS termination with Let's Encrypt
+- WebSocket/SSE support for `/mcp/sse`
+- Authorization header forwarding
+- Rate limiting and security headers
+
+## 🛡️ Security
+
+- ✅ **PKCE** prevents authorization code interception
+- ✅ **Per-user connectors** isolate data access
+- ✅ **Encrypted storage** for API credentials
+- ✅ **JWT tokens** with expiration
+- ✅ **HTTPS** with modern TLS (1.2+)
+- ✅ **Content Security Policy** headers
+- ✅ **Rate limiting** on sensitive endpoints
+
+## 📊 Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Backend | Python 3.9+, FastAPI |
+| Frontend | Next.js 14, TypeScript |
+| Database | SQLite with SQLAlchemy |
+| Web Server | Nginx 1.24.0 |
+| SSL | Let's Encrypt (Certbot) |
+| Auth | OAuth 2.0 + PKCE, JWT |
+| Protocol | MCP (SSE + JSON-RPC) |
+
+## 🤝 Integration Examples
+
+### ChatGPT
+
+```
+1. Settings → Connectors → Add Connector
+2. URL: https://mcp-kv.ru/.well-known/mcp.json
+3. Authorize access
+4. Start using tools in your chats!
+```
+
+### Make.com
+
+```
+1. Create new scenario
+2. Add MCP module
+3. Enter connector URL
+4. Authenticate with OAuth
+5. Select tool and configure parameters
+```
+
+### API (Python)
+
+```python
+import httpx
+
+# Authenticate
+response = httpx.post(
+    "https://mcp-kv.ru/api/auth/login",
+    json={"email": "user@example.com", "password": "password"}
+)
+token = response.json()["access_token"]
+
+# Call tool
+response = httpx.post(
+    f"https://mcp-kv.ru/mcp/sse/{connector_id}",
+    headers={"Authorization": f"Bearer {token}"},
+    json={
+        "jsonrpc": "2.0",
+        "method": "tools/call",
+        "params": {
+            "name": "wordpress_get_posts",
+            "arguments": {"per_page": 5}
+        },
+        "id": 1
     }
-
-    location /api/ {
-        proxy_pass http://localhost:8000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+)
 ```
 
-## 📱 Использование
+## 📈 Roadmap
 
-### 1. Регистрация и вход
-- Перейдите на главную страницу
-- Зарегистрируйтесь с сильным паролем
-- Войдите в систему
+- [ ] Additional CMS integrations (Joomla, Drupal)
+- [ ] More analytics providers (Google Analytics, Yandex Metrica)
+- [ ] WebSocket transport option
+- [ ] Rate limiting per user
+- [ ] Admin dashboard
+- [ ] Multi-language support
+- [ ] Tool usage analytics
+- [ ] Custom tool builder
 
-### 2. Настройка подключений
-- Перейдите в раздел "⚙️ Настройки"
-- Настройте WordPress подключение
-- Добавьте Wordstat API ключи
-- Скопируйте MCP SSE URL для ChatGPT
+## 🐛 Bug Reports & Feature Requests
 
-### 3. Использование инструментов
-- Перейдите в раздел "🛠️ Инструменты"
-- Выберите нужный инструмент
-- Заполните параметры
-- Нажмите "🚀 Выполнить"
+Please use [GitHub Issues](https://github.com/Horosheff/sofa/issues) to report bugs or request features.
 
-### 4. Подключение к ChatGPT
-- Скопируйте MCP SSE URL из настроек
-- В ChatGPT выберите "Connect to MCP Server"
-- Вставьте URL и подключитесь
-- Используйте инструменты через ChatGPT
+## 📝 License
 
-## 🔐 Безопасность
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-- JWT токены для аутентификации
-- Валидация паролей (минимум 8 символов, заглавные/строчные буквы, цифры)
-- CORS настройки для защиты от CSRF
-- Безопасное хранение настроек в базе данных
-- HTTPS поддержка для продакшена
+## 🙏 Acknowledgments
 
-## 📊 Мониторинг
+- [Model Context Protocol](https://modelcontextprotocol.io) specification
+- [FastAPI](https://fastapi.tiangolo.com) framework
+- [Next.js](https://nextjs.org) React framework
+- [WordPress REST API](https://developer.wordpress.org/rest-api/)
+- [Yandex Wordstat API](https://yandex.ru/dev/direct/doc/start/about.html)
 
-```bash
-# Проверка статуса сервисов
-docker-compose ps
+## 📞 Support
 
-# Просмотр логов
-docker-compose logs -f
-
-# Мониторинг ресурсов
-docker stats
-```
-
-## 🐛 Отладка
-
-### Проблемы с базой данных
-```bash
-# Пересоздание базы данных
-docker-compose exec backend python init_db.py
-```
-
-### Проблемы с frontend
-```bash
-# Пересборка frontend
-docker-compose build frontend --no-cache
-```
-
-### Проблемы с API
-```bash
-# Проверка API
-curl http://localhost:8000/docs
-```
-
-## 📈 Производительность
-
-- Redis кэширование для быстрого доступа
-- Оптимизированные SQL запросы
-- Lazy loading компонентов
-- Минификация и сжатие ресурсов
-
-## 🤝 Вклад в проект
-
-1. Форкните репозиторий
-2. Создайте ветку для новой функции
-3. Внесите изменения
-4. Создайте Pull Request
-
-## 📄 Лицензия
-
-MIT License - см. файл LICENSE для деталей.
-
-## 🆘 Поддержка
-
-- 📧 Email: support@example.com
-- 💬 Telegram: @your_username
-- 🐛 Issues: GitHub Issues
+- **Documentation**: See `DEPLOYMENT.md` for deployment guide
+- **Issues**: [GitHub Issues](https://github.com/Horosheff/sofa/issues)
+- **Live Demo**: [https://mcp-kv.ru](https://mcp-kv.ru)
 
 ---
 
-**WordPress MCP Platform** - Управляйте WordPress через AI с легкостью! 🚀
+**Made with ❤️ for the MCP community**
+
+[⬆ Back to Top](#-mcp-wordpress--wordstat-server)
