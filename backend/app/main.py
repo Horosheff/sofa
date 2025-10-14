@@ -534,7 +534,13 @@ async def send_sse_event(
             "SSE POST: missing Authorization header for connector %s",
             connector_id,
         )
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
+        raise HTTPException(
+            status_code=401,
+            detail="Требуется авторизация",
+            headers={
+                "WWW-Authenticate": "Bearer realm=\"mcp\", resource=\"https://mcp-kv.ru/mcp/sse\", authorization_uri=\"https://mcp-kv.ru/oauth/authorize\", token_uri=\"https://mcp-kv.ru/oauth/token\""
+            },
+        )
 
     await sse_manager.send(connector_id, payload)
     logger.info("SSE POST: event dispatched to connector %s", connector_id)
