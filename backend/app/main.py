@@ -466,6 +466,12 @@ async def sse_endpoint_oauth(
 
     async def event_generator():
         try:
+            # First, send the endpoint URL according to MCP spec
+            yield {
+                "event": "endpoint",
+                "data": "https://mcp-kv.ru/mcp/sse",
+            }
+            
             while True:
                 if await request.is_disconnected():
                     break
@@ -476,9 +482,9 @@ async def sse_endpoint_oauth(
                         "data": message,
                     }
                 except asyncio.TimeoutError:
+                    # Send heartbeat as comment (not as event)
                     yield {
-                        "event": "heartbeat",
-                        "data": "ping",
+                        "comment": "keepalive",
                     }
         finally:
             sse_manager.disconnect(connector_id)
