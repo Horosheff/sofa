@@ -1358,8 +1358,10 @@ async def oauth_authorize_submit(
 async def oauth_token(request: Request):
     """OAuth token endpoint supporting both form-encoded and JSON"""
     content_type = request.headers.get("content-type", "")
+    auth_header = request.headers.get("authorization", "")
     
     try:
+        # Сначала парсим body
         if "application/json" in content_type:
             data = await request.json()
             logger.info(f"POST /oauth/token (JSON): {data}")
@@ -1374,6 +1376,17 @@ async def oauth_token(request: Request):
         code = data.get("code")
         code_verifier = data.get("code_verifier")
         grant_type = data.get("grant_type")
+        
+        # ChatGPT отправляет client_id через HTTP Basic Auth
+        if not client_id and auth_header.lower().startswith("basic "):
+            import base64
+            try:
+                decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
+                if ':' in decoded:
+                    client_id, client_secret = decoded.split(':', 1)
+                    logger.info(f"OAuth token: client_id from Basic Auth: {client_id}")
+            except Exception as e:
+                logger.warning(f"Failed to decode Basic Auth: {e}")
         
         logger.info(f"OAuth token request: client_id={client_id}, grant_type={grant_type}, has_code={bool(code)}, has_verifier={bool(code_verifier)}")
         
@@ -1403,6 +1416,8 @@ async def oauth_token(request: Request):
             "expires_in": 3600,
             "scope": "mcp",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"OAuth token error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"invalid_request: {str(e)}")
