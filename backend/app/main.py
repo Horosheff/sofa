@@ -1965,11 +1965,13 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
             raise HTTPException(status_code=400, detail="Client ID and Client Secret must be configured first")
         
         # Обмениваем код на токен
-        # Определяем правильный redirect_uri в зависимости от окружения
-        if request.base_url.hostname == "localhost":
-            redirect_uri = "http://localhost:3000/dashboard"
-        else:
-            redirect_uri = "https://mcp-kv.ru/dashboard"
+        # Используем redirect_uri из настроек пользователя, если он заполнен, иначе используем дефолтный
+        redirect_uri = settings.wordstat_redirect_uri
+        if not redirect_uri or not redirect_uri.strip():
+            if request.base_url.hostname == "localhost":
+                redirect_uri = "http://localhost:3000/dashboard"
+            else:
+                redirect_uri = "https://mcp-kv.ru/dashboard"
         
         logger.info(f"OAuth callback: redirect_uri={redirect_uri}, client_id={settings.wordstat_client_id}")
         
