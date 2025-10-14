@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import ToolsPanel from '@/components/ToolsPanel'
 import SettingsPanel from '@/components/SettingsPanel'
-import WordstatOAuth from '@/components/WordstatOAuth'
 import { useAuthStore } from '@/store/authStore'
 
 export default function Dashboard() {
   const { user, logout } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<'tools' | 'settings' | 'oauth'>('tools')
+  const [activeTab, setActiveTab] = useState<'tools' | 'settings'>('tools')
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -58,33 +57,12 @@ export default function Dashboard() {
             >
               ⚙️ Настройки
             </button>
-            <button
-              onClick={() => setActiveTab('oauth')}
-              className={`px-6 py-3 rounded-md font-medium transition-all ${
-                activeTab === 'oauth'
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              🔐 Wordstat OAuth
-            </button>
           </div>
         </div>
 
         {/* Tab Content */}
         {activeTab === 'tools' && <ToolsPanel />}
         {activeTab === 'settings' && <SettingsPanel />}
-        {activeTab === 'oauth' && (
-          <div className="max-w-4xl">
-            <WordstatOAuth 
-              clientId="c654b948515a4a07a4c89648a0831d40"
-              clientSecret="eab18eb01c464014b1749bc3398f1c97"
-              onTokenReceived={(token) => {
-                console.log('Token received:', token);
-              }} 
-            />
-          </div>
-        )}
       </main>
     </div>
   )
