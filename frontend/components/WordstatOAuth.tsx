@@ -76,12 +76,16 @@ export default function WordstatOAuth({
     setError(null);
     
     try {
-      // Создаем OAuth URL
-      const redirectUri = `${window.location.origin}/dashboard`;
+      // Создаем OAuth URL с правильным redirect_uri и scope
+      const redirectUri = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000/dashboard'
+        : 'https://mcp-kv.ru/dashboard';
+      
       const oauthUrl = `https://oauth.yandex.ru/authorize?` +
         `response_type=code&` +
         `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}`;
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=wordstat`;
 
       // Переходим на страницу авторизации Yandex
       window.location.href = oauthUrl;

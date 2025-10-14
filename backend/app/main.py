@@ -1965,7 +1965,11 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
             raise HTTPException(status_code=400, detail="Client ID and Client Secret must be configured first")
         
         # Обмениваем код на токен
-        redirect_uri = f"{request.base_url}dashboard"
+        # Определяем правильный redirect_uri в зависимости от окружения
+        if request.base_url.hostname == "localhost":
+            redirect_uri = "http://localhost:3000/dashboard"
+        else:
+            redirect_uri = "https://mcp-kv.ru/dashboard"
         
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
@@ -1975,7 +1979,7 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
                     "code": code,
                     "client_id": settings.wordstat_client_id,
                     "client_secret": settings.wordstat_client_secret,
-                    "redirect_uri": str(redirect_uri)
+                    "redirect_uri": redirect_uri
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=30.0
@@ -1983,7 +1987,14 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
             
             if token_response.status_code != 200:
                 logger.error(f"Yandex OAuth token error: {token_response.text}")
-                raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+                error_detail = "Failed to exchange code for token"
+                try:
+                    error_data = token_response.json()
+                    if "error_description" in error_data:
+                        error_detail = f"OAuth error: {error_data['error_description']}"
+                except:
+                    pass
+                raise HTTPException(status_code=400, detail=error_detail)
             
             token_data = token_response.json()
             access_token = token_data.get("access_token")
