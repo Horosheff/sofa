@@ -1281,8 +1281,34 @@ async def send_sse_event(
         
         logger.info("SSE POST: tools/call for %s with args: %s", tool_name, json.dumps(tool_args))
         
-        # Get user settings for this connector
-        settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
+        # SECURITY: For tools/call, we MUST have authorization to know which user is calling
+        if not auth_header or not auth_header.lower().startswith("bearer "):
+            logger.warning("SSE POST: tools/call requires Authorization header for security")
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "Authorization required for tool calls"
+                }
+            }
+        
+        # Get user from token
+        token = auth_header.split(" ", 1)[1]
+        user = get_user_from_token(token, db)
+        if not user:
+            logger.warning("SSE POST: tools/call invalid token")
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "Invalid token"
+                }
+            }
+        
+        # Get user settings for this specific user
+        settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
         if not settings:
             return {
                 "jsonrpc": "2.0",
