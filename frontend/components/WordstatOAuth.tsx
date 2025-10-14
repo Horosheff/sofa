@@ -1,22 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
 
 interface WordstatOAuthProps {
+  clientId: string;
+  clientSecret: string;
+  currentToken?: string;
   onTokenReceived: (token: string) => void;
 }
 
-export default function WordstatOAuth({ onTokenReceived }: WordstatOAuthProps) {
-  const { user } = useAuthStore();
+export default function WordstatOAuth({ 
+  clientId, 
+  clientSecret, 
+  currentToken,
+  onTokenReceived 
+}: WordstatOAuthProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [manualToken, setManualToken] = useState('');
+  const [manualToken, setManualToken] = useState(currentToken || '');
   const [showManualInput, setShowManualInput] = useState(false);
-
-  // Проверяем есть ли уже токен
-  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     // Проверяем URL на наличие OAuth callback
@@ -63,45 +66,25 @@ export default function WordstatOAuth({ onTokenReceived }: WordstatOAuthProps) {
     }
   };
 
-  const startOAuthFlow = async () => {
+  const startOAuthFlow = () => {
+    if (!clientId || !clientSecret) {
+      setError('❌ Сначала настройте Client ID и Client Secret в настройках');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     
     try {
-      // Получаем настройки пользователя
-      const settingsResponse = await fetch('/api/user/settings');
-      const settings = await settingsResponse.json();
-      
-      if (!settings.wordstat_client_id || !settings.wordstat_client_secret) {
-        setError('❌ Сначала настройте Client ID и Client Secret в настройках');
-        setIsLoading(false);
-        return;
-      }
-
       // Создаем OAuth URL
       const redirectUri = `${window.location.origin}/dashboard`;
       const oauthUrl = `https://oauth.yandex.ru/authorize?` +
         `response_type=code&` +
-        `client_id=${settings.wordstat_client_id}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=wordstat&` +
-        `state=${user?.id}`;
+        `client_id=${clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}`;
 
-      // Открываем OAuth в новом окне
-      const popup = window.open(
-        oauthUrl,
-        'yandex-oauth',
-        'width=600,height=700,scrollbars=yes,resizable=yes'
-      );
-
-      // Слушаем закрытие окна
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          setIsLoading(false);
-        }
-      }, 1000);
-
+      // Переходим на страницу авторизации Yandex
+      window.location.href = oauthUrl;
     } catch (err) {
       setError('Ошибка запуска OAuth');
       setIsLoading(false);

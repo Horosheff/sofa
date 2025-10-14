@@ -76,10 +76,13 @@ export default function Dashboard() {
         {activeTab === 'settings' && <SettingsPanel />}
         {activeTab === 'oauth' && (
           <div className="max-w-4xl">
-            <WordstatOAuth onTokenReceived={(token) => {
-              console.log('Token received:', token);
-              // Можно добавить уведомление или обновление состояния
-            }} />
+            <WordstatOAuth 
+              clientId="c654b948515a4a07a4c89648a0831d40"
+              clientSecret="eab18eb01c464014b1749bc3398f1c97"
+              onTokenReceived={(token) => {
+                console.log('Token received:', token);
+              }} 
+            />
           </div>
         )}
       </main>
