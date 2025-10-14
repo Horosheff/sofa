@@ -685,6 +685,28 @@ async def mcp_manifest():
     }
 
 
+@app.post("/.well-known/mcp.json")
+async def mcp_manifest_post(request: Request):
+    """Log what ChatGPT is trying to POST"""
+    body = await request.body()
+    logger.info("POST /.well-known/mcp.json received body: %s", body.decode('utf-8') if body else 'empty')
+    headers = dict(request.headers)
+    logger.info("POST /.well-known/mcp.json headers: %s", headers)
+    
+    # Return same manifest
+    return {
+        "version": "0.1.0",
+        "name": "WordPress MCP Server",
+        "description": "MCP server for WordPress management",
+        "sse_url": "https://mcp-kv.ru/mcp/sse",
+        "oauth": {
+            "authorization_url": "https://mcp-kv.ru/oauth/authorize",
+            "token_url": "https://mcp-kv.ru/oauth/token",
+            "scopes": ["mcp"]
+        }
+    }
+
+
 @app.get("/oauth/authorize", response_class=HTMLResponse)
 async def oauth_authorize(client_id: str, redirect_uri: str, state: Optional[str] = None):
     if client_id not in oauth_store.clients:
