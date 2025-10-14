@@ -673,16 +673,14 @@ async def openid_config():
 @app.get("/.well-known/mcp.json")
 async def mcp_manifest():
     return {
-        "mcpServers": {
-            "wordpress-mcp": {
-                "url": "https://mcp-kv.ru/mcp/sse",
-                "transport": "sse",
-                "authMethod": {
-                    "type": "oauth",
-                    "authorizationUrl": "https://mcp-kv.ru/oauth/authorize",
-                    "tokenUrl": "https://mcp-kv.ru/oauth/token",
-                }
-            }
+        "version": "0.1.0",
+        "name": "WordPress MCP Server",
+        "description": "MCP server for WordPress management",
+        "sse_url": "https://mcp-kv.ru/mcp/sse",
+        "oauth": {
+            "authorization_url": "https://mcp-kv.ru/oauth/authorize",
+            "token_url": "https://mcp-kv.ru/oauth/token",
+            "scopes": ["mcp"]
         }
     }
 
