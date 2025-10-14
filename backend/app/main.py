@@ -501,8 +501,12 @@ async def oauth_authorize(client_id: str, redirect_uri: str, state: Optional[str
             "client_secret": secrets.token_urlsafe(32),
             "connector_id": "",
         }
+    hidden_state = f"<input type='hidden' name='state' value='{state}'>" if state else ""
     return (
         "<html><body><form method='post'>"
+        f"<input type='hidden' name='client_id' value='{client_id}'>"
+        f"<input type='hidden' name='redirect_uri' value='{redirect_uri}'>"
+        f"{hidden_state}"
         "<label>Connector ID: <input name='connector_id'></label><br>"
         "<button type='submit'>Authorize</button>"
         "</form></body></html>"
