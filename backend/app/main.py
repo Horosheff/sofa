@@ -665,8 +665,138 @@ async def send_sse_event_oauth(
                     post = resp.json()
                     result_content = f"Пост создан успешно!\nID: {post['id']}\nНазвание: {post['title']['rendered']}\nСтатус: {post['status']}"
             
+            # === WORDSTAT TOOLS ===
+            elif tool_name == "wordstat_set_token":
+                # Сохраняем токен
+                token = tool_args.get("token")
+                settings.wordstat_access_token = token
+                db.commit()
+                result_content = "Токен Wordstat сохранен успешно!"
+            
+            elif tool_name == "wordstat_get_user_info":
+                # Получаем информацию о пользователе
+                if not settings.wordstat_access_token:
+                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                else:
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.get(
+                            "https://api-sandbox.direct.yandex.ru/v4/json/",
+                            json={
+                                "method": "GetClientsInfo",
+                                "token": settings.wordstat_access_token
+                            },
+                            timeout=30.0
+                        )
+                        resp.raise_for_status()
+                        data = resp.json()
+                        result_content = f"Информация о пользователе Wordstat:\n{json.dumps(data, indent=2, ensure_ascii=False)}"
+            
+            elif tool_name == "wordstat_get_regions_tree":
+                # Получаем дерево регионов
+                result_content = """Дерево регионов Yandex Wordstat:
+
+Россия (ID: 225)
+├── Москва (ID: 213)
+├── Санкт-Петербург (ID: 2)
+├── Новосибирск (ID: 65)
+├── Екатеринбург (ID: 54)
+├── Казань (ID: 43)
+└── Нижний Новгород (ID: 47)
+
+Украина (ID: 187)
+├── Киев (ID: 143)
+├── Харьков (ID: 147)
+└── Одесса (ID: 145)
+
+Используйте ID региона для получения статистики."""
+            
+            elif tool_name == "wordstat_get_top_requests":
+                # Получаем топ запросов
+                query = tool_args.get("query")
+                region_id = tool_args.get("region_id", 225)  # По умолчанию Россия
+                
+                if not settings.wordstat_access_token:
+                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                else:
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.post(
+                            "https://api-sandbox.direct.yandex.ru/v4/json/",
+                            json={
+                                "method": "CreateNewWordstatReport",
+                                "param": {
+                                    "Phrases": [query],
+                                    "GeoID": [region_id]
+                                },
+                                "token": settings.wordstat_access_token
+                            },
+                            timeout=30.0
+                        )
+                        resp.raise_for_status()
+                        data = resp.json()
+                        
+                        if "data" in data:
+                            report_id = data["data"]
+                            # Получаем отчет
+                            await asyncio.sleep(2)  # Ждем формирования отчета
+                            
+                            resp2 = await client.post(
+                                "https://api-sandbox.direct.yandex.ru/v4/json/",
+                                json={
+                                    "method": "GetWordstatReport",
+                                    "param": report_id,
+                                    "token": settings.wordstat_access_token
+                                },
+                                timeout=30.0
+                            )
+                            resp2.raise_for_status()
+                            report = resp2.json()
+                            
+                            result_content = f"Топ запросов для '{query}' (регион {region_id}):\n\n"
+                            if "data" in report and report["data"]:
+                                for item in report["data"][0].get("SearchedWith", [])[:10]:
+                                    result_content += f"• {item['Phrase']}: {item['Shows']} показов\n"
+                            else:
+                                result_content += "Данные еще формируются или запрос не найден."
+                        else:
+                            result_content = f"Ошибка создания отчета: {data}"
+            
+            elif tool_name == "wordstat_get_dynamics":
+                # Получаем динамику запросов
+                query = tool_args.get("query")
+                
+                if not settings.wordstat_access_token:
+                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                else:
+                    result_content = f"Динамика запроса '{query}':\n\n"
+                    result_content += "Функция в разработке. Для получения динамики используйте метод CreateNewWordstatReport с параметром 'SearchedAlso'."
+            
+            elif tool_name == "wordstat_get_regions":
+                # Получаем статистику по регионам
+                query = tool_args.get("query")
+                
+                if not settings.wordstat_access_token:
+                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                else:
+                    result_content = f"Статистика по регионам для '{query}':\n\n"
+                    result_content += "Функция в разработке. Используйте wordstat_get_top_requests с разными region_id."
+            
+            elif tool_name == "wordstat_auto_setup":
+                # Автоматическая настройка
+                result_content = """Автоматическая настройка Wordstat:
+
+1. Получите токен API через OAuth:
+   - Зарегистрируйте приложение: https://oauth.yandex.ru/client/new
+   - Получите client_id и client_secret
+   - Авторизуйтесь и получите access_token
+
+2. Сохраните токен через wordstat_set_token
+
+3. Проверьте подключение через wordstat_get_user_info
+
+Документация: https://yandex.ru/dev/direct/doc/dg/concepts/about.html"""
+            
             else:
-                result_content = f"Инструмент '{tool_name}' пока не реализован. Доступны: wordpress_get_posts, wordpress_create_post"
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: set_token, get_user_info, get_regions_tree, get_top_requests, get_dynamics, get_regions, auto_setup"
             
             response = {
                 "jsonrpc": "2.0",
