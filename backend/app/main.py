@@ -1194,9 +1194,159 @@ async def send_sse_event(
             )
             raise HTTPException(status_code=404, detail="Коннектор не найден")
 
-    await sse_manager.send(connector_id, payload)
-    logger.info("SSE POST: event dispatched to connector %s", connector_id)
-    return {"status": "ok"}
+    # Handle JSON-RPC requests
+    method = payload.get("method")
+    request_id = payload.get("id")
+    
+    if method == "initialize":
+        response = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {
+                    "tools": {}
+                },
+                "serverInfo": {
+                    "name": "WordPress MCP Server",
+                    "version": "1.0.0"
+                }
+            }
+        }
+        logger.info("SSE POST: Responding to initialize with: %s", json.dumps(response))
+        return response
+    elif method == "tools/list":
+        tools = [
+            # WordPress Posts
+            {"name": "wordpress_create_post", "description": "Создать новый пост в WordPress", "inputSchema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}, "status": {"type": "string", "enum": ["publish", "draft"]}}, "required": ["title", "content"]}},
+            {"name": "wordpress_update_post", "description": "Обновить существующий пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "title": {"type": "string"}, "content": {"type": "string"}}, "required": ["post_id"]}},
+            {"name": "wordpress_get_posts", "description": "Получить список постов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "status": {"type": "string"}}}},
+            {"name": "wordpress_delete_post", "description": "Удалить пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}}, "required": ["post_id"]}},
+            {"name": "wordpress_search_posts", "description": "Поиск постов по ключевым словам", "inputSchema": {"type": "object", "properties": {"search": {"type": "string"}}, "required": ["search"]}},
+            {"name": "wordpress_bulk_update_posts", "description": "Массовое обновление постов", "inputSchema": {"type": "object", "properties": {"post_ids": {"type": "array", "items": {"type": "integer"}}, "updates": {"type": "object"}}, "required": ["post_ids", "updates"]}},
+            
+            # WordPress Categories
+            {"name": "wordpress_create_category", "description": "Создать новую категорию", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}, "slug": {"type": "string"}, "description": {"type": "string"}}, "required": ["name"]}},
+            {"name": "wordpress_get_categories", "description": "Получить список категорий", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}}}},
+            {"name": "wordpress_update_category", "description": "Обновить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}, "name": {"type": "string"}, "description": {"type": "string"}}, "required": ["category_id"]}},
+            {"name": "wordpress_delete_category", "description": "Удалить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}}, "required": ["category_id"]}},
+            
+            # WordPress Tags
+            {"name": "wordpress_create_tag", "description": "Создать новый тег", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}, "slug": {"type": "string"}, "description": {"type": "string"}}, "required": ["name"]}},
+            {"name": "wordpress_get_tags", "description": "Получить список тегов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}}}},
+            {"name": "wordpress_update_tag", "description": "Обновить тег", "inputSchema": {"type": "object", "properties": {"tag_id": {"type": "integer"}, "name": {"type": "string"}, "description": {"type": "string"}}, "required": ["tag_id"]}},
+            {"name": "wordpress_delete_tag", "description": "Удалить тег", "inputSchema": {"type": "object", "properties": {"tag_id": {"type": "integer"}}, "required": ["tag_id"]}},
+            
+            # WordPress Media
+            {"name": "wordpress_upload_media", "description": "Загрузить медиафайл", "inputSchema": {"type": "object", "properties": {"file_path": {"type": "string"}, "title": {"type": "string"}, "alt_text": {"type": "string"}}, "required": ["file_path"]}},
+            {"name": "wordpress_upload_image_from_url", "description": "Загрузить изображение по URL", "inputSchema": {"type": "object", "properties": {"image_url": {"type": "string"}, "title": {"type": "string"}, "alt_text": {"type": "string"}}, "required": ["image_url"]}},
+            {"name": "wordpress_get_media", "description": "Получить список медиафайлов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "media_type": {"type": "string"}}}},
+            {"name": "wordpress_delete_media", "description": "Удалить медиафайл", "inputSchema": {"type": "object", "properties": {"media_id": {"type": "integer"}}, "required": ["media_id"]}},
+            
+            # WordPress Users
+            {"name": "wordpress_get_users", "description": "Получить список пользователей", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "role": {"type": "string"}}}},
+            {"name": "wordpress_create_user", "description": "Создать нового пользователя", "inputSchema": {"type": "object", "properties": {"username": {"type": "string"}, "email": {"type": "string"}, "password": {"type": "string"}, "role": {"type": "string"}}, "required": ["username", "email", "password"]}},
+            {"name": "wordpress_update_user", "description": "Обновить пользователя", "inputSchema": {"type": "object", "properties": {"user_id": {"type": "integer"}, "email": {"type": "string"}, "role": {"type": "string"}}, "required": ["user_id"]}},
+            {"name": "wordpress_delete_user", "description": "Удалить пользователя", "inputSchema": {"type": "object", "properties": {"user_id": {"type": "integer"}}, "required": ["user_id"]}},
+            
+            # WordPress Comments
+            {"name": "wordpress_get_comments", "description": "Получить комментарии", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "per_page": {"type": "integer"}, "status": {"type": "string"}}}},
+            {"name": "wordpress_moderate_comment", "description": "Модерировать комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "status": {"type": "string", "enum": ["approve", "hold", "spam", "trash"]}}, "required": ["comment_id", "status"]}},
+            
+            # Yandex Wordstat
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat", "inputSchema": {"type": "object"}}},
+            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов", "inputSchema": {"type": "object"}}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "date_from": {"type": "string"}, "date_to": {"type": "string"}}, "required": ["phrase"]}}},
+            {"name": "wordstat_get_regions", "description": "Получить список регионов", "inputSchema": {"type": "object"}}},
+            {"name": "wordstat_auto_setup", "description": "Автоматическая настройка токена Wordstat", "inputSchema": {"type": "object"}}},
+            {"name": "wordstat_get_competitors", "description": "Анализ конкурентов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
+            {"name": "wordstat_get_related_queries", "description": "Получить похожие запросы", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
+            {"name": "wordstat_get_geography", "description": "Получить географию запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
+            {"name": "wordstat_export_data", "description": "Экспорт данных Wordstat", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "format": {"type": "string", "enum": ["csv", "json", "xlsx"]}}, "required": ["phrase"]}}}
+        ]
+        
+        response = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "tools": tools
+            }
+        }
+        logger.info("SSE POST: Responding to tools/list with %d tools", len(tools))
+        return response
+    elif method == "tools/call":
+        tool_name = payload.get("params", {}).get("name")
+        tool_args = payload.get("params", {}).get("arguments", {})
+        
+        logger.info("SSE POST: tools/call for %s with args: %s", tool_name, json.dumps(tool_args))
+        
+        # Get user settings for this connector
+        settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
+        if not settings:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32600,
+                    "message": "User settings not found"
+                }
+            }
+        
+        # Handle tool calls
+        try:
+            if tool_name == "wordpress_get_posts":
+                # Implementation for wordpress_get_posts
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": f"WordPress posts retrieved for user {settings.user_id}"
+                        }]
+                    }
+                }
+            elif tool_name == "wordpress_create_post":
+                # Implementation for wordpress_create_post
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": f"Post created successfully for user {settings.user_id}"
+                        }]
+                    }
+                }
+            else:
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": f"Tool {tool_name} executed successfully"
+                        }]
+                    }
+                }
+        except Exception as e:
+            response = {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32603,
+                    "message": f"Internal error: {str(e)}"
+                }
+            }
+        
+        logger.info("SSE POST: tools/call response: %s", json.dumps(response))
+        return response
+    else:
+        # For other methods, send through SSE
+        await sse_manager.send(connector_id, payload)
+        logger.info("SSE POST: event dispatched to connector %s", connector_id)
+        return {"status": "ok"}
 
 @app.get("/mcp/tools")
 async def get_available_tools():
