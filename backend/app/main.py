@@ -1180,17 +1180,19 @@ async def send_sse_event(
             )
             raise HTTPException(status_code=403, detail="Нет доступа к этому коннектору")
     else:
-        logger.warning(
-            "SSE POST: missing Authorization header for connector %s",
+        # Прямой доступ по connector_id без авторизации
+        logger.info(
+            "SSE POST: direct access for connector %s (no auth required)",
             connector_id,
         )
-        raise HTTPException(
-            status_code=401,
-            detail="Требуется авторизация",
-            headers={
-                "WWW-Authenticate": "Bearer realm=\"mcp\", resource=\"https://mcp-kv.ru/mcp/sse\", authorization_uri=\"https://mcp-kv.ru/oauth/authorize\", token_uri=\"https://mcp-kv.ru/oauth/token\""
-            },
-        )
+        # Проверим, что connector_id существует в базе
+        settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
+        if not settings:
+            logger.warning(
+                "SSE POST: connector %s not found in database",
+                connector_id,
+            )
+            raise HTTPException(status_code=404, detail="Коннектор не найден")
 
     await sse_manager.send(connector_id, payload)
     logger.info("SSE POST: event dispatched to connector %s", connector_id)
