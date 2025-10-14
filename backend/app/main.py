@@ -381,6 +381,26 @@ async def sse_endpoint(
 
     return EventSourceResponse(event_generator())
 
+
+@app.post("/mcp/sse/{connector_id}")
+async def send_sse_event(
+    connector_id: str,
+    payload: Dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    settings = (
+        db.query(UserSettings)
+        .filter(UserSettings.user_id == current_user.id)
+        .filter(UserSettings.mcp_connector_id == connector_id)
+        .first()
+    )
+    if not settings:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому коннектору")
+
+    await sse_manager.send(connector_id, payload)
+    return {"status": "ok"}
+
 @app.get("/mcp/tools")
 async def get_available_tools():
     """Получить список доступных MCP инструментов"""
