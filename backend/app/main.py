@@ -410,6 +410,63 @@ async def execute_mcp_command(
                 message=f"Ошибка MCP сервера: {e.response.status_code}"
             )
 
+@app.get("/mcp/sse")
+async def sse_endpoint_oauth(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """SSE endpoint для OAuth клиентов (без connector_id в URL)"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Требуется авторизация",
+            headers={
+                "WWW-Authenticate": "Bearer realm=\"mcp\", resource=\"https://mcp-kv.ru/mcp/sse\", authorization_uri=\"https://mcp-kv.ru/oauth/authorize\", token_uri=\"https://mcp-kv.ru/oauth/token\""
+            },
+        )
+    
+    token = auth_header.split(" ", 1)[1]
+    connector_id = oauth_store.get_connector_by_token(token)
+    
+    if not connector_id:
+        # Попробовать JWT
+        user = get_user_from_token(token, db)
+        if not user:
+            raise HTTPException(status_code=401, detail="Недействительный токен")
+        
+        settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        if not settings or not settings.mcp_connector_id:
+            raise HTTPException(status_code=404, detail="Коннектор не найден")
+        connector_id = settings.mcp_connector_id
+    
+    logger.info("SSE GET: connector %s connected via OAuth/JWT", connector_id)
+    
+    queue = await sse_manager.connect(connector_id)
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=15)
+                    yield {
+                        "event": "message",
+                        "data": message,
+                    }
+                except asyncio.TimeoutError:
+                    yield {
+                        "event": "heartbeat",
+                        "data": "ping",
+                    }
+        finally:
+            sse_manager.disconnect(connector_id)
+            logger.info("SSE GET: connector %s disconnected", connector_id)
+
+    return EventSourceResponse(event_generator())
+
+
 @app.get("/mcp/sse/{connector_id}")
 async def sse_endpoint(
     connector_id: str,
@@ -580,7 +637,7 @@ async def mcp_manifest():
     return {
         "mcpServers": {
             "wordpress-mcp": {
-                "url": "https://mcp-kv.ru/mcp/sse/{connector_id}",
+                "url": "https://mcp-kv.ru/mcp/sse",
                 "transport": "sse",
                 "authMethod": {
                     "type": "oauth",
