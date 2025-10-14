@@ -1312,6 +1312,60 @@ async def mcp_manifest_post(request: Request):
     }
 
 
+@app.get("/user/mcp-manifest")
+async def user_mcp_manifest(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Personal MCP manifest with direct connector access (JWT-based).
+    No OAuth required - just use the provided token in Authorization header.
+    """
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    
+    if not settings or not settings.mcp_connector_id:
+        raise HTTPException(status_code=404, detail="Connector not found. Please configure your settings first.")
+    
+    # Generate long-lived JWT token for MCP access
+    from datetime import datetime, timedelta
+    access_token_expires = timedelta(days=365)
+    access_token = create_access_token(
+        data={"sub": current_user.email}, expires_delta=access_token_expires
+    )
+    
+    connector_url = f"https://mcp-kv.ru/mcp/sse/{settings.mcp_connector_id}"
+    
+    return {
+        "version": "0.1.0",
+        "name": f"{current_user.full_name or current_user.email}'s WordPress MCP",
+        "description": f"Personal MCP server for {current_user.email}",
+        "sse_url": connector_url,
+        "authentication": {
+            "type": "bearer",
+            "token": access_token,
+            "header": "Authorization",
+            "scheme": "Bearer"
+        },
+        "info": {
+            "connector_id": settings.mcp_connector_id,
+            "direct_access": True,
+            "oauth_required": False,
+            "token_expires": "365 days",
+            "tools_count": 25
+        },
+        "instructions": {
+            "usage": [
+                "This is your PERSONAL MCP connector - no OAuth needed!",
+                f"Direct URL: {connector_url}",
+                "JWT token is already included in this manifest",
+                "Token is valid for 1 year",
+                "Simply paste this URL into ChatGPT, Make.com or any MCP client"
+            ],
+            "curl_example": f"curl -N -H 'Authorization: Bearer {access_token}' {connector_url}"
+        }
+    }
+
+
 @app.get("/oauth/authorize", response_class=HTMLResponse)
 async def oauth_authorize(
     client_id: str,
