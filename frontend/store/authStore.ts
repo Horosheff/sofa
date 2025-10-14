@@ -49,7 +49,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const data = await response.json()
-        set({ user: data.user, token: data.token, isAuthenticated: true, hasHydrated: true })
+        set({ user: data.user, token: data.access_token, isAuthenticated: true, hasHydrated: true })
       },
 
       register: async (email: string, password: string, full_name: string) => {
@@ -68,7 +68,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const data = await response.json()
-        set({ user: data.user, token: data.token, isAuthenticated: true, hasHydrated: true })
+        set({ user: data.user, token: data.access_token, isAuthenticated: true, hasHydrated: true })
       },
 
       logout: () => {

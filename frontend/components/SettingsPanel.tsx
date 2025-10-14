@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import PasswordField from './PasswordField'
 import { useAuthStore } from '@/store/authStore'
 
-interface UserSettings {
+interface SettingsResponse {
   wordpress_url?: string
   wordpress_username?: string
   wordpress_password?: string
@@ -18,69 +19,127 @@ interface UserSettings {
 }
 
 interface SettingsFormData {
-  wordpress_url: string
-  wordpress_username: string
-  wordpress_password: string
-  wordstat_client_id: string
-  wordstat_client_secret: string
-  wordstat_redirect_uri: string
-  mcp_sse_url: string
-  mcp_connector_id: string
-  timezone: string
-  language: string
+  wordpress_url?: string
+  wordpress_username?: string
+  wordpress_password?: string
+  wordstat_client_id?: string
+  wordstat_client_secret?: string
+  wordstat_redirect_uri?: string
+  mcp_sse_url?: string
+  mcp_connector_id?: string
+  timezone?: string
+  language?: string
 }
 
 export default function SettingsPanel() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(false)
   const [message, setMessage] = useState('')
-  const [settings, setSettings] = useState<UserSettings>({})
   const { token, user } = useAuthStore()
-  
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm<SettingsFormData>()
 
-  useEffect(() => {
-    loadSettings()
-  }, [])
-
-  const loadSettings = async () => {
-    try {
-      // Пока API недоступен, используем тестовые данные
-      const testSettings = {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    watch,
+  } = useForm<SettingsFormData>({
+    defaultValues: useMemo(
+      () => ({
         wordpress_url: '',
         wordpress_username: '',
         wordpress_password: '',
         wordstat_client_id: '',
         wordstat_client_secret: '',
         wordstat_redirect_uri: '',
-        mcp_sse_url: `https://mcp-kov4eg.com/sse/${user?.id || 'user-12345'}`,
-        mcp_connector_id: `${user?.id || 'user-12345'}-connector`,
+        mcp_sse_url: '',
+        mcp_connector_id: '',
         timezone: 'UTC',
-        language: 'ru'
-      }
-      
-      setSettings(testSettings)
-      
-      // Заполняем форму
-      setValue('wordpress_url', testSettings.wordpress_url || '')
-      setValue('wordpress_username', testSettings.wordpress_username || '')
-      setValue('wordstat_client_id', testSettings.wordstat_client_id || '')
-      setValue('wordstat_redirect_uri', testSettings.wordstat_redirect_uri || '')
-      setValue('mcp_sse_url', testSettings.mcp_sse_url || '')
-      setValue('mcp_connector_id', testSettings.mcp_connector_id || '')
-      setValue('timezone', testSettings.timezone || 'UTC')
-      setValue('language', testSettings.language || 'ru')
-    } catch (error) {
-      console.error('Ошибка загрузки настроек:', error)
-    }
+        language: 'ru',
+      }),
+      []
+    ),
+  })
+
+  const watchValues = {
+    wordpress_password: watch('wordpress_password'),
+    wordstat_client_secret: watch('wordstat_client_secret'),
+    mcp_sse_url: watch('mcp_sse_url'),
+    mcp_connector_id: watch('mcp_connector_id'),
   }
 
+  useEffect(() => {
+    if (!token) {
+      reset()
+      return
+    }
+    const loadSettings = async () => {
+      setIsFetching(true)
+      setMessage('')
+      try {
+        const response = await fetch('/api/user/settings', {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(await response.text())
+        }
+
+        const data: SettingsResponse = await response.json()
+        reset({
+          wordpress_url: data.wordpress_url ?? '',
+          wordpress_username: data.wordpress_username ?? '',
+          wordpress_password: data.wordpress_password ?? '',
+          wordstat_client_id: data.wordstat_client_id ?? '',
+          wordstat_client_secret: data.wordstat_client_secret ?? '',
+          wordstat_redirect_uri: data.wordstat_redirect_uri ?? '',
+          mcp_sse_url: data.mcp_sse_url ?? '',
+          mcp_connector_id: data.mcp_connector_id ?? '',
+          timezone: data.timezone ?? 'UTC',
+          language: data.language ?? 'ru',
+        })
+      } catch (error) {
+        console.error('Ошибка загрузки настроек:', error)
+        setMessage('Не удалось загрузить настройки пользователя')
+      } finally {
+        setIsFetching(false)
+      }
+    }
+
+    loadSettings()
+  }, [token, reset])
+
   const onSubmit = async (data: SettingsFormData) => {
+    if (!token) {
+      setMessage('Не удалось подтвердить авторизацию')
+      return
+    }
+
     setIsLoading(true)
     setMessage('')
-    
+
     try {
-      // Пока API недоступен, просто сохраняем в localStorage
-      localStorage.setItem('user-settings', JSON.stringify(data))
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...data,
+          timezone: data.timezone ?? 'UTC',
+          language: data.language ?? 'ru',
+        }),
+      })
+
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}))
+        throw new Error(detail?.detail || 'Неизвестная ошибка')
+      }
+
       setMessage('Настройки успешно сохранены!')
     } catch (error: any) {
       setMessage('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
@@ -151,17 +210,15 @@ export default function SettingsPanel() {
                 placeholder="username"
               />
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-white/80 mb-2">
-                Пароль приложения
-              </label>
-              <input
-                {...register('wordpress_password')}
-                type="password"
-                className="modern-input w-full"
-                placeholder="••••••••"
-              />
-            </div>
+            <PasswordField
+              label="Пароль приложения"
+              name="wordpress_password"
+              value={watchValues.wordpress_password}
+              onChange={(value) => setValue('wordpress_password', value, { shouldDirty: true })}
+              onBlur={() => setValue('wordpress_password', watchValues.wordpress_password, { shouldDirty: true })}
+              placeholder="••••••••"
+              className="md:col-span-2"
+            />
           </div>
         </div>
 
@@ -182,17 +239,13 @@ export default function SettingsPanel() {
                 placeholder="your_client_id"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
-                Client Secret
-              </label>
-              <input
-                {...register('wordstat_client_secret')}
-                type="password"
-                className="modern-input w-full"
-                placeholder="••••••••"
-              />
-            </div>
+            <PasswordField
+              label="Client Secret"
+              name="wordstat_client_secret"
+              value={watchValues.wordstat_client_secret}
+              onChange={(value) => setValue('wordstat_client_secret', value, { shouldDirty: true })}
+              placeholder="••••••••"
+            />
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-white/80 mb-2">
                 Redirect URI
@@ -212,36 +265,23 @@ export default function SettingsPanel() {
           <h3 className="text-xl font-bold text-white mb-6 flex items-center">
             🔗 MCP SSE сервер
           </h3>
-          <div className="grid grid-cols-1 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
-                URL MCP SSE сервера
-              </label>
-              <input
-                {...register('mcp_sse_url')}
-                type="url"
-                className="modern-input w-full"
-                placeholder="https://mcp-kov4eg.com/sse/your-connector-id"
-              />
-              <p className="text-xs text-white/60 mt-1">
-                Уникальный URL для подключения к MCP серверу
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
-                ID коннектора
-              </label>
-              <input
-                {...register('mcp_connector_id')}
-                type="text"
-                className="modern-input w-full"
-                placeholder="user-12345-connector"
-                readOnly
-              />
-              <p className="text-xs text-white/60 mt-1">
-                Автоматически генерируется при регистрации
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PasswordField
+              label="URL MCP SSE сервера"
+              name="mcp_sse_url"
+              value={watchValues.mcp_sse_url}
+              onChange={(value) => setValue('mcp_sse_url', value, { shouldDirty: true })}
+              placeholder="https://mcp-kv.ru/sse/connector"
+              readOnly
+              className="md:col-span-2"
+            />
+            <PasswordField
+              label="ID коннектора"
+              name="mcp_connector_id"
+              value={watchValues.mcp_connector_id}
+              onChange={(value) => setValue('mcp_connector_id', value, { shouldDirty: true })}
+              readOnly
+            />
           </div>
           <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
             <h4 className="text-sm font-semibold text-blue-300 mb-2">📋 Как получить MCP SSE URL:</h4>
@@ -255,40 +295,7 @@ export default function SettingsPanel() {
         </div>
 
         {/* General Settings */}
-        <div className="modern-card p-6">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-            ⚙️ Общие настройки
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
-                Часовой пояс
-              </label>
-              <select
-                {...register('timezone')}
-                className="modern-input w-full"
-              >
-                <option value="UTC">UTC</option>
-                <option value="Europe/Moscow">Москва</option>
-                <option value="Europe/Kiev">Киев</option>
-                <option value="America/New_York">Нью-Йорк</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
-                Язык
-              </label>
-              <select
-                {...register('language')}
-                className="modern-input w-full"
-              >
-                <option value="ru">Русский</option>
-                <option value="en">English</option>
-                <option value="uk">Українська</option>
-              </select>
-            </div>
-          </div>
-        </div>
+        {/* Removed general settings per requirements */}
 
         {message && (
           <div className={`modern-card p-4 ${

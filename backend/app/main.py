@@ -1,16 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.orm import Session
 import httpx
 import os
 import re
-from typing import Optional
+import asyncio
+import json
+from typing import Optional, Dict
 
 from .database import get_db
 from .auth import get_current_user, create_access_token, get_password_hash, verify_password, generate_connector_id, generate_mcp_sse_url
+from sse_starlette import EventSourceResponse
 from .models import User, UserSettings
 from .schemas import UserCreate, UserLogin, MCPRequest, MCPResponse
 
@@ -30,10 +31,32 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],  # Только необходимые заголовки
 )
 
+# Middleware безопасности временно отключен для отладки
+
 security = HTTPBearer()
 
 # MCP Server URL (замените на ваш)
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8080")
+
+# Менеджер SSE потоков
+class SseManager:
+    def __init__(self):
+        self._streams: Dict[str, asyncio.Queue] = {}
+
+    async def connect(self, connector_id: str) -> asyncio.Queue:
+        queue: asyncio.Queue = asyncio.Queue()
+        self._streams[connector_id] = queue
+        return queue
+
+    def disconnect(self, connector_id: str) -> None:
+        self._streams.pop(connector_id, None)
+
+    async def send(self, connector_id: str, data: Dict) -> None:
+        queue = self._streams.get(connector_id)
+        if queue:
+            await queue.put(json.dumps(data))
+
+sse_manager = SseManager()
 
 # Функции валидации
 def validate_email(email: str) -> bool:
@@ -126,7 +149,16 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     # Создаем токен доступа
     access_token = create_access_token(data={"sub": user.email})
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+        }
+    }
 
 @app.post("/auth/login")
 async def login(login_data: UserLogin, db: Session = Depends(get_db)):
@@ -150,7 +182,16 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
         )
     
     access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+        }
+    }
 
 @app.get("/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
@@ -169,14 +210,37 @@ async def get_user_settings(
 ):
     """Получить настройки пользователя"""
     settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+
     if not settings:
-        raise HTTPException(status_code=404, detail="Настройки не найдены")
-    
+        connector_id = generate_connector_id(current_user.id, current_user.full_name or "user")
+        settings = UserSettings(
+            user_id=current_user.id,
+            mcp_connector_id=connector_id,
+            mcp_sse_url=generate_mcp_sse_url(connector_id),
+            timezone="UTC",
+            language="ru"
+        )
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    else:
+        connector_id = settings.mcp_connector_id
+        if not connector_id or len(connector_id) < 20:
+            connector_id = generate_connector_id(current_user.id, current_user.full_name or "user")
+            settings.mcp_connector_id = connector_id
+        expected_url = generate_mcp_sse_url(connector_id)
+        if settings.mcp_sse_url != expected_url:
+            settings.mcp_sse_url = expected_url
+        db.commit()
+        db.refresh(settings)
+
     return {
         "wordpress_url": settings.wordpress_url,
         "wordpress_username": settings.wordpress_username,
-        "has_wordpress_credentials": bool(settings.wordpress_url and settings.wordpress_username),
-        "has_wordstat_credentials": bool(settings.wordstat_client_id),
+        "wordpress_password": settings.wordpress_password,
+        "wordstat_client_id": settings.wordstat_client_id,
+        "wordstat_client_secret": settings.wordstat_client_secret,
+        "wordstat_redirect_uri": settings.wordstat_redirect_uri,
         "mcp_sse_url": settings.mcp_sse_url,
         "mcp_connector_id": settings.mcp_connector_id,
         "timezone": settings.timezone,
@@ -281,38 +345,41 @@ async def execute_mcp_command(
             )
 
 @app.get("/mcp/sse/{connector_id}")
-async def get_mcp_sse_info(connector_id: str, db: Session = Depends(get_db)):
-    """Получить информацию о MCP SSE коннекторе и проверить доступ"""
-    settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
+async def sse_endpoint(
+    connector_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    settings = (
+        db.query(UserSettings)
+        .filter(UserSettings.mcp_connector_id == connector_id)
+        .first()
+    )
     if not settings:
         raise HTTPException(status_code=404, detail="Коннектор не найден")
-    
-    user = db.query(User).filter(User.id == settings.user_id).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=403, detail="Пользователь неактивен")
-    
-    return {
-        "connector_id": connector_id,
-        "user_id": user.id,
-        "user_name": user.full_name,
-        "available_tools": {
-            "wordpress": [
-                "create_post", "update_post", "get_posts", "delete_post", "search_posts",
-                "create_category", "get_categories", "upload_media"
-            ],
-            "wordstat": [
-                "get_wordstat_regions_tree", "get_wordstat_top_requests", "get_wordstat_dynamics"
-            ],
-            "google": [
-                "google_trends", "google_search_volume", "google_keywords", "google_analytics"
-            ],
-        },
-        "permissions": {
-            "wordpress": bool(settings.wordpress_url),
-            "wordstat": bool(settings.wordstat_client_id),
-            "google": True  # Google работает через MCP сервер
-        }
-    }
+
+    queue = await sse_manager.connect(connector_id)
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=15)
+                    yield {
+                        "event": "message",
+                        "data": message,
+                    }
+                except asyncio.TimeoutError:
+                    yield {
+                        "event": "heartbeat",
+                        "data": "ping",
+                    }
+        finally:
+            sse_manager.disconnect(connector_id)
+
+    return EventSourceResponse(event_generator())
 
 @app.get("/mcp/tools")
 async def get_available_tools():

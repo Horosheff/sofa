@@ -34,16 +34,18 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def generate_connector_id(user_id: int, username: str) -> str:
-    """Генерация уникального ID коннектора для MCP SSE"""
-    # Очищаем username от спецсимволов
-    clean_username = "".join(c.lower() for c in username if c.isalnum())[:10]
-    # Генерируем уникальный ID
-    unique_id = str(uuid.uuid4())[:8]
-    return f"{clean_username}-{user_id}-{unique_id}"
+    """Генерация уникального, ASCII-only ID коннектора для MCP SSE"""
+    clean_username = "".join(
+        c.lower() for c in username if c.isascii() and c.isalnum()
+    )[:8]
+    if not clean_username:
+        clean_username = "user"
+    random_id = secrets.token_urlsafe(24)  # 24 байта ~ 32 символа
+    return f"{clean_username}-{random_id}"
 
 def generate_mcp_sse_url(connector_id: str) -> str:
     """Генерация URL для MCP SSE сервера"""
-    return f"https://mcp-kov4eg.com/sse/{connector_id}"
+    return f"https://mcp-kv.ru/sse/{connector_id}"
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Создание JWT токена"""

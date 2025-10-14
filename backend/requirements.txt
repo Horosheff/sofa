@@ -10,3 +10,4 @@ python-dotenv
 email-validator
 fastapi-limiter
 redis
+sse-starlette
