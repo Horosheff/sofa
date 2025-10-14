@@ -46,6 +46,7 @@ export default function SettingsPanel() {
     setValue,
     reset,
     watch,
+    getValues,
   } = useForm<SettingsFormData>({
     defaultValues: useMemo(
       () => ({
@@ -128,6 +129,9 @@ export default function SettingsPanel() {
     setMessage('')
 
     try {
+      // Получаем текущие значения из формы
+      const formData = getValues()
+      
       // Сначала сохраняем настройки
       const response = await fetch('/api/user/settings', {
         method: 'PUT',
@@ -136,9 +140,9 @@ export default function SettingsPanel() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          wordstat_client_id: watchValues.wordstat_client_id,
-          wordstat_client_secret: watchValues.wordstat_client_secret,
-          wordstat_redirect_uri: watchValues.wordstat_redirect_uri,
+          wordstat_client_id: formData.wordstat_client_id,
+          wordstat_client_secret: formData.wordstat_client_secret,
+          wordstat_redirect_uri: formData.wordstat_redirect_uri,
           timezone: 'UTC',
           language: 'ru',
         }),
@@ -150,14 +154,14 @@ export default function SettingsPanel() {
       }
 
       // После успешного сохранения генерируем OAuth URL
-      const currentRedirectUri = watchValues.wordstat_redirect_uri;
+      const currentRedirectUri = formData.wordstat_redirect_uri;
       const redirectUri = (currentRedirectUri && currentRedirectUri.trim()) || 
         (window.location.hostname === 'localhost' 
           ? 'http://localhost:3000/dashboard'
           : 'https://mcp-kv.ru/dashboard');
       
       const params = new URLSearchParams({
-        client_id: watchValues.wordstat_client_id,
+        client_id: formData.wordstat_client_id,
         redirect_uri: redirectUri,
         response_type: 'code'
       });
