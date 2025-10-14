@@ -551,30 +551,40 @@ async def send_sse_event_oauth(
         await sse_manager.send(connector_id, response)
     elif method == "tools/list":
         tools = [
-            {
-                "name": "wordpress_create_post",
-                "description": "Create a new WordPress post",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string", "description": "Post title"},
-                        "content": {"type": "string", "description": "Post content (HTML)"},
-                        "status": {"type": "string", "enum": ["publish", "draft"], "default": "draft"}
-                    },
-                    "required": ["title", "content"]
-                }
-            },
-            {
-                "name": "wordpress_get_posts",
-                "description": "Get list of WordPress posts",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "per_page": {"type": "integer", "default": 10},
-                        "status": {"type": "string", "enum": ["publish", "draft", "any"], "default": "any"}
-                    }
-                }
-            }
+            # WordPress Posts
+            {"name": "wordpress_create_post", "description": "Создать новый пост в WordPress", "inputSchema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}, "status": {"type": "string", "enum": ["publish", "draft"]}}, "required": ["title", "content"]}},
+            {"name": "wordpress_update_post", "description": "Обновить существующий пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "title": {"type": "string"}, "content": {"type": "string"}}, "required": ["post_id"]}},
+            {"name": "wordpress_get_posts", "description": "Получить список постов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "status": {"type": "string"}}}},
+            {"name": "wordpress_delete_post", "description": "Удалить пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}}, "required": ["post_id"]}},
+            {"name": "wordpress_search_posts", "description": "Поиск постов по ключевым словам", "inputSchema": {"type": "object", "properties": {"search": {"type": "string"}}, "required": ["search"]}},
+            {"name": "wordpress_bulk_update_posts", "description": "Массовое обновление постов", "inputSchema": {"type": "object", "properties": {"post_ids": {"type": "array", "items": {"type": "integer"}}, "updates": {"type": "object"}}, "required": ["post_ids", "updates"]}},
+            
+            # WordPress Categories
+            {"name": "wordpress_create_category", "description": "Создать категорию", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}},
+            {"name": "wordpress_get_categories", "description": "Получить список категорий", "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "wordpress_update_category", "description": "Обновить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}, "name": {"type": "string"}}, "required": ["category_id"]}},
+            {"name": "wordpress_delete_category", "description": "Удалить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}}, "required": ["category_id"]}},
+            
+            # WordPress Media
+            {"name": "wordpress_upload_media", "description": "Загрузить медиа файл", "inputSchema": {"type": "object", "properties": {"file_url": {"type": "string"}, "title": {"type": "string"}}, "required": ["file_url"]}},
+            {"name": "wordpress_upload_image_from_url", "description": "Загрузить изображение по URL", "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}},
+            {"name": "wordpress_get_media", "description": "Получить список медиа", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}}}},
+            {"name": "wordpress_delete_media", "description": "Удалить медиа", "inputSchema": {"type": "object", "properties": {"media_id": {"type": "integer"}}, "required": ["media_id"]}},
+            
+            # WordPress Comments
+            {"name": "wordpress_create_comment", "description": "Создать комментарий", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["post_id", "content"]}},
+            {"name": "wordpress_get_comments", "description": "Получить список комментариев", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}}}},
+            {"name": "wordpress_update_comment", "description": "Обновить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["comment_id"]}},
+            {"name": "wordpress_delete_comment", "description": "Удалить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}}, "required": ["comment_id"]}},
+            
+            # Wordstat
+            {"name": "wordstat_set_token", "description": "Установить токен Wordstat", "inputSchema": {"type": "object", "properties": {"token": {"type": "string"}}, "required": ["token"]}},
+            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов Wordstat", "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ запросов", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["query"]}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat", "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "wordstat_auto_setup", "description": "Автоматическая настройка Wordstat", "inputSchema": {"type": "object", "properties": {}}},
         ]
         response = {
             "jsonrpc": "2.0",
