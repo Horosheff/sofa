@@ -1944,3 +1944,107 @@ async def oauth_token(request: Request):
     except Exception as e:
         logger.error(f"OAuth token error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"invalid_request: {str(e)}")
+
+
+@app.post("/api/oauth/yandex/callback")
+async def yandex_oauth_callback(request: Request, current_user: User = Depends(get_current_user)):
+    """Обработка OAuth callback от Yandex"""
+    try:
+        data = await request.json()
+        code = data.get("code")
+        
+        if not code:
+            raise HTTPException(status_code=400, detail="Missing authorization code")
+        
+        # Получаем настройки пользователя
+        settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+        if not settings:
+            raise HTTPException(status_code=404, detail="User settings not found")
+        
+        if not settings.wordstat_client_id or not settings.wordstat_client_secret:
+            raise HTTPException(status_code=400, detail="Client ID and Client Secret must be configured first")
+        
+        # Обмениваем код на токен
+        redirect_uri = f"{request.base_url}dashboard"
+        
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth.yandex.ru/token",
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "client_id": settings.wordstat_client_id,
+                    "client_secret": settings.wordstat_client_secret,
+                    "redirect_uri": str(redirect_uri)
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30.0
+            )
+            
+            if token_response.status_code != 200:
+                logger.error(f"Yandex OAuth token error: {token_response.text}")
+                raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+            
+            token_data = token_response.json()
+            access_token = token_data.get("access_token")
+            
+            if not access_token:
+                raise HTTPException(status_code=400, detail="No access token received")
+            
+            # Сохраняем токен в базу данных
+            settings.wordstat_access_token = access_token
+            db.commit()
+            
+            logger.info(f"OAuth token saved for user {current_user.email}")
+            
+            return {
+                "success": True,
+                "access_token": access_token,
+                "expires_in": token_data.get("expires_in", 3600)
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OAuth callback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.get("/api/wordstat/user-info")
+async def wordstat_user_info(current_user: User = Depends(get_current_user)):
+    """Получить информацию о пользователе Wordstat"""
+    try:
+        settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+        if not settings or not settings.wordstat_access_token:
+            raise HTTPException(status_code=400, detail="Wordstat access token not configured")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://login.yandex.ru/info",
+                headers={
+                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                    "Content-Type": "application/json"
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                user_info = response.json()
+                return {
+                    "success": True,
+                    "user_info": {
+                        "id": user_info.get("id"),
+                        "real_name": user_info.get("real_name"),
+                        "login": user_info.get("login"),
+                        "email": user_info.get("default_email")
+                    }
+                }
+            else:
+                logger.error(f"Wordstat user info error: {response.text}")
+                raise HTTPException(status_code=400, detail="Invalid access token")
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Wordstat user info error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
