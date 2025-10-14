@@ -671,25 +671,68 @@ async def send_sse_event_oauth(
                 token = tool_args.get("token")
                 settings.wordstat_access_token = token
                 db.commit()
-                result_content = "Токен Wordstat сохранен успешно!"
+                result_content = "✅ Токен Wordstat сохранен успешно!"
             
             elif tool_name == "wordstat_get_user_info":
                 # Получаем информацию о пользователе
-                if not settings.wordstat_access_token:
-                    result_content = "Ошибка: токен Wordstat не настроен. Используйте wordstat_set_token."
+                if not settings.wordstat_access_token and not settings.wordstat_client_id:
+                    result_content = """❌ Wordstat не настроен!
+
+Настройки в базе данных:
+- Client ID: отсутствует
+- Access Token: отсутствует
+
+📋 Что нужно сделать:
+1. Зайдите на dashboard по адресу https://mcp-kv.ru
+2. В разделе "Настройки" заполните поля Wordstat:
+   - Client ID
+   - Client Secret (Application Password)
+   - Redirect URI (можно использовать https://oauth.yandex.ru/verification_code)
+
+3. Затем используйте wordstat_auto_setup для получения инструкций по OAuth"""
+                
+                elif not settings.wordstat_access_token and settings.wordstat_client_id:
+                    result_content = f"""⚠️ Wordstat настроен частично!
+
+Найдено в базе:
+- Client ID: {settings.wordstat_client_id}
+- Client Secret: {'✓ установлен' if settings.wordstat_client_secret else '✗ отсутствует'}
+- Access Token: отсутствует
+
+🔐 Для получения Access Token:
+1. Откройте в браузере:
+   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id}
+
+2. Разрешите доступ к приложению
+
+3. Скопируйте access_token из URL
+
+4. Используйте wordstat_set_token с полученным токеном"""
+                
                 else:
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.get(
-                            "https://api-sandbox.direct.yandex.ru/v4/json/",
-                            json={
-                                "method": "GetClientsInfo",
-                                "token": settings.wordstat_access_token
-                            },
-                            timeout=30.0
-                        )
-                        resp.raise_for_status()
-                        data = resp.json()
-                        result_content = f"Информация о пользователе Wordstat:\n{json.dumps(data, indent=2, ensure_ascii=False)}"
+                    # Есть токен - пробуем получить информацию
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.direct.yandex.com/json/v5/agencyclients",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Accept-Language": "ru"
+                                },
+                                json={
+                                    "method": "get",
+                                    "params": {}
+                                },
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                result_content = f"✅ Подключение к Wordstat успешно!\n\n{json.dumps(data, indent=2, ensure_ascii=False)}"
+                            else:
+                                result_content = f"⚠️ Токен есть, но API вернул ошибку {resp.status_code}:\n{resp.text}\n\nВозможно, токен устарел. Получите новый через wordstat_auto_setup."
+                    except Exception as e:
+                        result_content = f"❌ Ошибка при подключении к Wordstat API:\n{str(e)}\n\nПроверьте токен или получите новый."
             
             elif tool_name == "wordstat_get_regions_tree":
                 # Получаем дерево регионов
@@ -781,19 +824,77 @@ async def send_sse_event_oauth(
                     result_content += "Функция в разработке. Используйте wordstat_get_top_requests с разными region_id."
             
             elif tool_name == "wordstat_auto_setup":
-                # Автоматическая настройка
-                result_content = """Автоматическая настройка Wordstat:
+                # Автоматическая настройка с диагностикой
+                status_lines = ["🔧 Диагностика Wordstat API\n"]
+                status_lines.append("=" * 50)
+                
+                # Проверяем, что есть в базе
+                if settings.wordstat_client_id:
+                    status_lines.append(f"✅ Client ID: {settings.wordstat_client_id}")
+                else:
+                    status_lines.append("❌ Client ID: не установлен")
+                
+                if settings.wordstat_client_secret:
+                    status_lines.append("✅ Client Secret: установлен")
+                else:
+                    status_lines.append("❌ Client Secret: не установлен")
+                
+                if settings.wordstat_access_token:
+                    status_lines.append("✅ Access Token: установлен")
+                else:
+                    status_lines.append("❌ Access Token: не установлен")
+                
+                status_lines.append("\n" + "=" * 50)
+                
+                # Даем инструкции в зависимости от ситуации
+                if not settings.wordstat_client_id:
+                    status_lines.append("""
+📋 ШАГ 1: Регистрация приложения Yandex Direct
 
-1. Получите токен API через OAuth:
-   - Зарегистрируйте приложение: https://oauth.yandex.ru/client/new
-   - Получите client_id и client_secret
-   - Авторизуйтесь и получите access_token
+1. Откройте: https://oauth.yandex.ru/client/new
+2. Заполните форму:
+   - Название: "MCP WordPress"
+   - Права доступа: выберите "API Яндекс.Директ"
+   - Redirect URI: https://oauth.yandex.ru/verification_code
+3. Нажмите "Создать приложение"
+4. Скопируйте Client ID и пароль приложения
+5. Зайдите на https://mcp-kv.ru и сохраните их в настройках
 
-2. Сохраните токен через wordstat_set_token
+📚 Документация: https://yandex.ru/dev/direct/doc/start/about.html""")
+                
+                elif not settings.wordstat_access_token:
+                    status_lines.append(f"""
+📋 ШАГ 2: Получение Access Token
 
-3. Проверьте подключение через wordstat_get_user_info
+У вас уже есть Client ID! Теперь получите токен:
 
-Документация: https://yandex.ru/dev/direct/doc/dg/concepts/about.html"""
+1. Откройте эту ссылку в браузере:
+   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id}
+
+2. Разрешите доступ к API Яндекс.Директ
+
+3. После разрешения вы будете перенаправлены на URL вида:
+   https://oauth.yandex.ru/verification_code#access_token=ВАШТОКЕН...
+
+4. Скопируйте значение access_token из адресной строки
+
+5. Используйте инструмент wordstat_set_token с этим токеном
+
+💡 Токен действителен 1 год.""")
+                
+                else:
+                    status_lines.append("""
+✅ Wordstat полностью настроен!
+
+Используйте инструменты:
+• wordstat_get_top_requests - топ запросов по ключевому слову
+• wordstat_get_regions_tree - список регионов
+• wordstat_get_dynamics - динамика запросов
+• wordstat_get_regions - статистика по регионам
+
+Проверьте подключение: wordstat_get_user_info""")
+                
+                result_content = "\n".join(status_lines)
             
             else:
                 result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: set_token, get_user_info, get_regions_tree, get_top_requests, get_dynamics, get_regions, auto_setup"
