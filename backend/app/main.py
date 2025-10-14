@@ -467,6 +467,44 @@ async def sse_endpoint_oauth(
     return EventSourceResponse(event_generator())
 
 
+@app.post("/mcp/sse")
+async def send_sse_event_oauth(
+    payload: Dict,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """POST endpoint для OAuth клиентов (без connector_id в URL)"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        logger.warning("SSE POST /mcp/sse: missing Authorization header")
+        raise HTTPException(
+            status_code=401,
+            detail="Требуется авторизация",
+            headers={
+                "WWW-Authenticate": "Bearer realm=\"mcp\", resource=\"https://mcp-kv.ru/mcp/sse\", authorization_uri=\"https://mcp-kv.ru/oauth/authorize\", token_uri=\"https://mcp-kv.ru/oauth/token\""
+            },
+        )
+    
+    token = auth_header.split(" ", 1)[1]
+    connector_id = oauth_store.get_connector_by_token(token)
+    
+    if not connector_id:
+        # Попробовать JWT
+        user = get_user_from_token(token, db)
+        if not user:
+            logger.warning("SSE POST /mcp/sse: invalid token")
+            raise HTTPException(status_code=401, detail="Недействительный токен")
+        
+        settings = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+        if not settings or not settings.mcp_connector_id:
+            raise HTTPException(status_code=404, detail="Коннектор не найден")
+        connector_id = settings.mcp_connector_id
+    
+    logger.info("SSE POST /mcp/sse: event dispatched to connector %s", connector_id)
+    await sse_manager.send(connector_id, payload)
+    return {"status": "ok"}
+
+
 @app.get("/mcp/sse/{connector_id}")
 async def sse_endpoint(
     connector_id: str,
