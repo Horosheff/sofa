@@ -117,8 +117,8 @@ export default function SettingsPanel() {
     loadSettings()
   }, [token, reset])
 
-  // Генерируем OAuth URL когда изменяется client_id или redirect_uri
-  useEffect(() => {
+  // Генерируем OAuth URL только после сохранения настроек
+  const generateOAuthUrl = () => {
     if (watchValues.wordstat_client_id) {
       // Используем redirect_uri из настроек, если он заполнен, иначе используем дефолтный
       const redirectUri = (watchValues.wordstat_redirect_uri && watchValues.wordstat_redirect_uri.trim()) || 
@@ -134,7 +134,7 @@ export default function SettingsPanel() {
       
       setAuthUrl(`https://oauth.yandex.ru/authorize?${params.toString()}`);
     }
-  }, [watchValues.wordstat_client_id, watchValues.wordstat_redirect_uri])
+  }
 
   const onSubmit = async (data: SettingsFormData) => {
     if (!token) {
@@ -165,6 +165,8 @@ export default function SettingsPanel() {
       }
 
       setMessage('Настройки успешно сохранены!')
+      // Генерируем OAuth URL после успешного сохранения
+      generateOAuthUrl()
     } catch (error: any) {
       setMessage('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
     } finally {
@@ -325,7 +327,7 @@ export default function SettingsPanel() {
           </div>
 
           {/* OAuth Section */}
-          {watchValues.wordstat_client_id && watchValues.wordstat_client_secret && (
+          {watchValues.wordstat_client_id && watchValues.wordstat_client_secret && authUrl && (
             <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <h4 className="text-lg font-semibold text-blue-300 mb-4">🔐 Авторизация Wordstat</h4>
               
