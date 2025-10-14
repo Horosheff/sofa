@@ -710,29 +710,83 @@ async def send_sse_event_oauth(
 4. Используйте wordstat_set_token с полученным токеном"""
                 
                 else:
-                    # Есть токен - пробуем получить информацию
+                    # Есть токен - пробуем получить информацию через Live4 Reports API
                     try:
                         async with httpx.AsyncClient() as client:
+                            # Используем метод Live/GetWordstatReportList для проверки токена
                             resp = await client.post(
-                                "https://api.direct.yandex.com/json/v5/agencyclients",
+                                "https://api.direct.yandex.com/live/v4/json/",
                                 headers={
-                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
-                                    "Accept-Language": "ru"
+                                    "Accept-Language": "ru",
+                                    "Content-Type": "application/json"
                                 },
                                 json={
-                                    "method": "get",
-                                    "params": {}
+                                    "method": "GetWordstatReportList",
+                                    "token": settings.wordstat_access_token
                                 },
                                 timeout=30.0
                             )
                             
+                            logger.info(f"Wordstat API response status: {resp.status_code}")
+                            logger.info(f"Wordstat API response: {resp.text[:500]}")
+                            
                             if resp.status_code == 200:
                                 data = resp.json()
-                                result_content = f"✅ Подключение к Wordstat успешно!\n\n{json.dumps(data, indent=2, ensure_ascii=False)}"
+                                
+                                # Проверяем, есть ли ошибка в ответе
+                                if "error_code" in data or "error_str" in data:
+                                    error_code = data.get("error_code", "unknown")
+                                    error_msg = data.get("error_str", data.get("error_detail", "Неизвестная ошибка"))
+                                    
+                                    result_content = f"""❌ Ошибка API Wordstat:
+Код ошибки: {error_code}
+Сообщение: {error_msg}
+
+🔧 Возможные причины:
+1. Токен недействителен или истёк
+2. Аккаунт не имеет доступа к Яндекс.Директ/Wordstat
+3. Токен был получен для другого приложения
+
+📋 Что делать:
+1. Получите новый токен через: 
+   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id if settings.wordstat_client_id else 'ВАШ_CLIENT_ID'}
+
+2. Убедитесь, что аккаунт имеет доступ к Wordstat
+3. Используйте wordstat_set_token для сохранения нового токена"""
+                                
+                                elif "data" in data:
+                                    # Успешный ответ
+                                    reports = data.get("data", [])
+                                    result_content = f"""✅ Подключение к Wordstat успешно!
+
+📊 Информация о токене:
+- Статус: активен
+- Доступ к API: есть
+- Количество отчетов: {len(reports)}
+
+🎉 Можете использовать все инструменты Wordstat!
+• wordstat_get_top_requests - топ запросов
+• wordstat_get_regions_tree - регионы
+• wordstat_get_dynamics - динамика"""
+                                
+                                else:
+                                    result_content = f"""⚠️ Необычный ответ от API:
+{json.dumps(data, indent=2, ensure_ascii=False)}"""
+                            
                             else:
-                                result_content = f"⚠️ Токен есть, но API вернул ошибку {resp.status_code}:\n{resp.text}\n\nВозможно, токен устарел. Получите новый через wordstat_auto_setup."
+                                result_content = f"""❌ HTTP ошибка {resp.status_code}:
+{resp.text}
+
+Токен может быть недействительным. Получите новый через wordstat_auto_setup."""
+                    
                     except Exception as e:
-                        result_content = f"❌ Ошибка при подключении к Wordstat API:\n{str(e)}\n\nПроверьте токен или получите новый."
+                        result_content = f"""❌ Ошибка при подключении к Wordstat API:
+{str(e)}
+
+Проверьте:
+1. Токен правильный?
+2. Есть ли доступ к интернету?
+3. Аккаунт имеет доступ к Яндекс.Директ?"""
             
             elif tool_name == "wordstat_get_regions_tree":
                 # Получаем дерево регионов
