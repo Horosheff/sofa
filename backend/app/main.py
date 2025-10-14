@@ -1260,6 +1260,7 @@ async def send_sse_event(
             {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "date_from": {"type": "string"}, "date_to": {"type": "string"}}, "required": ["phrase"]}},
             {"name": "wordstat_get_regions", "description": "Получить список регионов", "inputSchema": {"type": "object"}},
             {"name": "wordstat_auto_setup", "description": "Автоматическая настройка токена Wordstat", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_set_token", "description": "Установить токен доступа Wordstat", "inputSchema": {"type": "object", "properties": {"access_token": {"type": "string"}}, "required": ["access_token"]}},
             {"name": "wordstat_get_competitors", "description": "Анализ конкурентов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
             {"name": "wordstat_get_related_queries", "description": "Получить похожие запросы", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
             {"name": "wordstat_get_geography", "description": "Получить географию запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
@@ -1560,9 +1561,83 @@ async def send_sse_event(
                     }
                 }
                 
+            elif tool_name == "wordstat_set_token":
+                # Установка токена доступа
+                access_token = tool_args.get("access_token", "")
+                
+                if not access_token:
+                    result_content = "❌ Не указан access_token! Используйте параметр 'access_token'"
+                else:
+                    try:
+                        # Сохраняем токен в базу данных
+                        settings.wordstat_access_token = access_token
+                        db.commit()
+                        
+                        # Проверяем токен через API
+                        try:
+                            async with httpx.AsyncClient() as client:
+                                resp = await client.post(
+                                    "https://api.wordstat.yandex.net/v1/userInfo",
+                                    headers={
+                                        "Authorization": f"Bearer {access_token}",
+                                        "Content-Type": "application/json;charset=utf-8"
+                                    },
+                                    timeout=30.0
+                                )
+                                
+                                if resp.status_code == 200:
+                                    data = resp.json()
+                                    result_content = f"""✅ Токен успешно установлен и проверен!
+
+👤 Информация о пользователе:
+- Логин: {data.get('login', 'не указан')}
+- ID: {data.get('user_id', 'не указан')}
+- Статус: {data.get('status', 'не указан')}
+
+🔧 Токен сохранен в настройках пользователя
+✅ Теперь можно использовать все инструменты Wordstat:
+- wordstat_get_user_info
+- wordstat_get_regions
+- wordstat_get_top_requests
+- wordstat_get_dynamics"""
+                                else:
+                                    result_content = f"""⚠️ Токен сохранен, но API вернул ошибку!
+
+Статус: {resp.status_code}
+Ответ: {resp.text}
+
+Возможные причины:
+1. Токен недействителен
+2. Токен истек
+3. Проблемы с API Yandex
+
+Попробуйте получить новый токен через wordstat_auto_setup"""
+                                    
+                        except Exception as e:
+                            result_content = f"""⚠️ Токен сохранен, но проверка не удалась!
+
+Ошибка: {str(e)}
+
+Токен сохранен в настройках, но может быть недействительным.
+Попробуйте проверить через wordstat_get_user_info"""
+                            
+                    except Exception as e:
+                        result_content = f"❌ Ошибка сохранения токена: {str(e)}"
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
+                
             else:
                 # Для остальных инструментов
-                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: get_user_info, get_regions, get_top_requests, auto_setup"
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: get_user_info, get_regions, get_top_requests, auto_setup, set_token"
                 
                 response = {
                     "jsonrpc": "2.0",
