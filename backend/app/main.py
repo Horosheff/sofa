@@ -1254,16 +1254,16 @@ async def send_sse_event(
             {"name": "wordpress_moderate_comment", "description": "Модерировать комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "status": {"type": "string", "enum": ["approve", "hold", "spam", "trash"]}}, "required": ["comment_id", "status"]}},
             
             # Yandex Wordstat
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat", "inputSchema": {"type": "object"}}},
-            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов", "inputSchema": {"type": "object"}}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "date_from": {"type": "string"}, "date_to": {"type": "string"}}, "required": ["phrase"]}}},
-            {"name": "wordstat_get_regions", "description": "Получить список регионов", "inputSchema": {"type": "object"}}},
-            {"name": "wordstat_auto_setup", "description": "Автоматическая настройка токена Wordstat", "inputSchema": {"type": "object"}}},
-            {"name": "wordstat_get_competitors", "description": "Анализ конкурентов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
-            {"name": "wordstat_get_related_queries", "description": "Получить похожие запросы", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
-            {"name": "wordstat_get_geography", "description": "Получить географию запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}},
-            {"name": "wordstat_export_data", "description": "Экспорт данных Wordstat", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "format": {"type": "string", "enum": ["csv", "json", "xlsx"]}}, "required": ["phrase"]}}}
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "date_from": {"type": "string"}, "date_to": {"type": "string"}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_regions", "description": "Получить список регионов", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_auto_setup", "description": "Автоматическая настройка токена Wordstat", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_competitors", "description": "Анализ конкурентов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_related_queries", "description": "Получить похожие запросы", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_geography", "description": "Получить географию запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
+            {"name": "wordstat_export_data", "description": "Экспорт данных Wordstat", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "format": {"type": "string", "enum": ["csv", "json", "xlsx"]}}, "required": ["phrase"]}}
         ]
         
         response = {
