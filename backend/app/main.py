@@ -578,14 +578,6 @@ async def send_sse_event_oauth(
             {"name": "wordpress_update_comment", "description": "Обновить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["comment_id"]}},
             {"name": "wordpress_delete_comment", "description": "Удалить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}}, "required": ["comment_id"]}},
             
-            # Wordstat
-            {"name": "wordstat_set_token", "description": "Установить токен Wordstat", "inputSchema": {"type": "object", "properties": {"token": {"type": "string"}}, "required": ["token"]}},
-            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов Wordstat", "inputSchema": {"type": "object", "properties": {}}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ запросов", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["query"]}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat", "inputSchema": {"type": "object", "properties": {}}},
-            {"name": "wordstat_auto_setup", "description": "Автоматическая настройка Wordstat", "inputSchema": {"type": "object", "properties": {}}},
         ]
         response = {
             "jsonrpc": "2.0",
@@ -668,12 +660,6 @@ async def send_sse_event_oauth(
                     result_content = f"Пост создан успешно!\nID: {post['id']}\nНазвание: {post['title']['rendered']}\nСтатус: {post['status']}"
             
             # === WORDSTAT TOOLS ===
-            elif tool_name == "wordstat_set_token":
-                # Сохраняем токен
-                token = tool_args.get("token")
-                settings.wordstat_access_token = token
-                db.commit()
-                result_content = "✅ Токен Wordstat сохранен успешно!"
             
             elif tool_name == "wordstat_get_user_info":
                 # Получаем информацию о пользователе
