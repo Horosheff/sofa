@@ -1,0 +1,48 @@
+{
+  "mcp": {
+    "version": "0.1.0",
+    "servers": {
+      "primary": {
+        "description": "WordPress MCP Platform",
+        "transport": {
+          "type": "sse",
+          "url": "https://mcp-kv.ru/mcp/sse/{connector_id}",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {token}"
+            }
+          ]
+        },
+        "authentication": {
+          "required": true,
+          "methods": [
+            {
+              "type": "token",
+              "header": "Authorization",
+              "hint": "Bearer <JWT из /api/auth/login>"
+            }
+          ]
+        },
+        "capabilities": {
+          "tools": [
+            {
+              "name": "execute",
+              "method": "POST",
+              "path": "https://mcp-kv.ru/api/mcp/execute"
+            }
+          ],
+          "settings": {
+            "get": "https://mcp-kv.ru/api/user/settings",
+            "update": "https://mcp-kv.ru/api/user/settings"
+          }
+        },
+        "links": {
+          "login": "https://mcp-kv.ru/api/auth/login",
+          "register": "https://mcp-kv.ru/api/auth/register"
+        }
+      }
+    }
+  }
+}
+
