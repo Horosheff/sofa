@@ -1654,8 +1654,8 @@ async def send_sse_event(
                 }
             }
         
-            logger.info("SSE POST: tools/call response: %s", json.dumps(response))
-            return response
+        logger.info("SSE POST: tools/call response: %s", json.dumps(response))
+        return response
     else:
         # For other methods, send through SSE
         await sse_manager.send(connector_id, payload)
