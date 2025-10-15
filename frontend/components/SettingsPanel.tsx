@@ -163,11 +163,10 @@ export default function SettingsPanel() {
           ? 'http://localhost:3000/dashboard'
           : 'https://mcp-kv.ru/dashboard');
       
-      const params = new URLSearchParams({
-        client_id: formData.wordstat_client_id || '',
-        redirect_uri: redirectUri,
-        response_type: 'code'
-      });
+      const params = new URLSearchParams();
+      params.append('client_id', formData.wordstat_client_id || '');
+      params.append('redirect_uri', redirectUri);
+      params.append('response_type', 'code');
       
       setAuthUrl(`https://oauth.yandex.ru/authorize?${params.toString()}`);
       setMessage('✅ Настройки сохранены! OAuth ссылка сгенерирована.')
