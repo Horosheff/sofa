@@ -578,10 +578,12 @@ async def send_sse_event_oauth(
             {"name": "wordpress_update_comment", "description": "Обновить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["comment_id"]}},
             {"name": "wordpress_delete_comment", "description": "Удалить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}}, "required": ["comment_id"]}},
             
-            # Yandex Wordstat (только работающие методы)
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat и статус токена", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_regions", "description": "Получить список регионов для статистики", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}
+            # Yandex Wordstat API (v1) - все 5 методов
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat (/v1/userInfo)", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов (/v1/getRegionsTree)", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "numPhrases": {"type": "integer"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"]}, "fromDate": {"type": "string"}, "toDate": {"type": "string"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase", "fromDate"]}},
+            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"]}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}}
         ]
         response = {
             "jsonrpc": "2.0",
@@ -1243,10 +1245,12 @@ async def send_sse_event(
             {"name": "wordpress_get_comments", "description": "Получить комментарии", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "per_page": {"type": "integer"}, "status": {"type": "string"}}}},
             {"name": "wordpress_moderate_comment", "description": "Модерировать комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "status": {"type": "string", "enum": ["approve", "hold", "spam", "trash"]}}, "required": ["comment_id", "status"]}},
             
-            # Yandex Wordstat (только работающие методы)
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat и статус токена", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_regions", "description": "Получить список регионов для статистики", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}
+            # Yandex Wordstat API (v1) - все 5 методов
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat (/v1/userInfo)", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов (/v1/getRegionsTree)", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "numPhrases": {"type": "integer"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"]}, "fromDate": {"type": "string"}, "toDate": {"type": "string"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase", "fromDate"]}},
+            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"]}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}}
         ]
         
         response = {
