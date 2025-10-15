@@ -236,6 +236,130 @@ async def wordpress_bulk_update_posts(settings: UserSettings, tool_args: Dict[st
     return result
 
 
+# ==================== PAGES ====================
+
+async def wordpress_get_pages(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Получить список страниц"""
+    per_page = tool_args.get("per_page", 10)
+    status = tool_args.get("status", "any")
+    
+    pages = await wordpress_api_call(
+        "GET",
+        "/wp-json/wp/v2/pages",
+        settings,
+        params={"per_page": per_page, "status": status}
+    )
+    
+    result = f"Найдено {len(pages)} страниц:\n\n"
+    for page in pages:
+        result += f"ID: {page['id']}\n"
+        result += f"Название: {page['title']['rendered']}\n"
+        result += f"Статус: {page['status']}\n"
+        result += f"Дата: {page['date']}\n\n"
+    
+    return result
+
+
+async def wordpress_create_page(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Создать новую страницу"""
+    title = tool_args.get("title")
+    content = tool_args.get("content")
+    status = tool_args.get("status", "draft")
+    parent = tool_args.get("parent", 0)
+    
+    if not title or not content:
+        return "❌ Ошибка: title и content обязательны"
+    
+    page_data = {
+        "title": title,
+        "content": content,
+        "status": status
+    }
+    
+    if parent:
+        page_data["parent"] = parent
+    
+    page = await wordpress_api_call(
+        "POST",
+        "/wp-json/wp/v2/pages",
+        settings,
+        json_data=page_data
+    )
+    
+    return f"✅ Страница создана успешно!\nID: {page['id']}\nНазвание: {page['title']['rendered']}\nСтатус: {page['status']}"
+
+
+async def wordpress_update_page(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Обновить существующую страницу"""
+    page_id = tool_args.get("page_id")
+    
+    if not page_id:
+        return "❌ Ошибка: page_id обязателен"
+    
+    update_data = {}
+    if "title" in tool_args:
+        update_data["title"] = tool_args["title"]
+    if "content" in tool_args:
+        update_data["content"] = tool_args["content"]
+    if "status" in tool_args:
+        update_data["status"] = tool_args["status"]
+    if "parent" in tool_args:
+        update_data["parent"] = tool_args["parent"]
+    
+    if not update_data:
+        return "❌ Ошибка: нужно указать хотя бы одно поле для обновления"
+    
+    page = await wordpress_api_call(
+        "POST",
+        f"/wp-json/wp/v2/pages/{page_id}",
+        settings,
+        json_data=update_data
+    )
+    
+    return f"✅ Страница обновлена!\nID: {page['id']}\nНазвание: {page['title']['rendered']}\nСтатус: {page['status']}"
+
+
+async def wordpress_delete_page(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Удалить страницу"""
+    page_id = tool_args.get("page_id")
+    
+    if not page_id:
+        return "❌ Ошибка: page_id обязателен"
+    
+    await wordpress_api_call(
+        "DELETE",
+        f"/wp-json/wp/v2/pages/{page_id}",
+        settings,
+        params={"force": True}
+    )
+    
+    return f"✅ Страница {page_id} успешно удалена"
+
+
+async def wordpress_search_pages(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Поиск страниц по ключевым словам"""
+    search_query = tool_args.get("search", "")
+    
+    if not search_query:
+        return "❌ Ошибка: search обязателен"
+    
+    pages = await wordpress_api_call(
+        "GET",
+        "/wp-json/wp/v2/pages",
+        settings,
+        params={"search": search_query, "per_page": 10}
+    )
+    
+    if not pages:
+        return f"Ничего не найдено по запросу: {search_query}"
+    
+    result = f"Найдено {len(pages)} страниц по запросу '{search_query}':\n\n"
+    for page in pages:
+        result += f"ID: {page['id']}\nНазвание: {page['title']['rendered']}\nДата: {page['date']}\n\n"
+    
+    return result
+
+
 # ==================== CATEGORIES ====================
 
 async def wordpress_create_category(settings: UserSettings, tool_args: Dict[str, Any]) -> str:

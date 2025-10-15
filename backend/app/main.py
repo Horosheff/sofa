@@ -1483,6 +1483,8 @@ async def send_sse_event(
                     from app.wordpress_tools import (
                         wordpress_get_posts, wordpress_create_post, wordpress_update_post,
                         wordpress_delete_post, wordpress_search_posts, wordpress_bulk_update_posts,
+                        wordpress_get_pages, wordpress_create_page, wordpress_update_page,
+                        wordpress_delete_page, wordpress_search_pages,
                         wordpress_create_category, wordpress_get_categories, wordpress_update_category,
                         wordpress_delete_category, wordpress_upload_media, wordpress_upload_image_from_url,
                         wordpress_get_media, wordpress_delete_media, wordpress_create_comment,
@@ -1502,6 +1504,16 @@ async def send_sse_event(
                             result_content = await wordpress_search_posts(settings, tool_args)
                         elif tool_name == "wordpress_bulk_update_posts":
                             result_content = await wordpress_bulk_update_posts(settings, tool_args)
+                        elif tool_name == "wordpress_get_pages":
+                            result_content = await wordpress_get_pages(settings, tool_args)
+                        elif tool_name == "wordpress_create_page":
+                            result_content = await wordpress_create_page(settings, tool_args)
+                        elif tool_name == "wordpress_update_page":
+                            result_content = await wordpress_update_page(settings, tool_args)
+                        elif tool_name == "wordpress_delete_page":
+                            result_content = await wordpress_delete_page(settings, tool_args)
+                        elif tool_name == "wordpress_search_pages":
+                            result_content = await wordpress_search_pages(settings, tool_args)
                         elif tool_name == "wordpress_create_category":
                             result_content = await wordpress_create_category(settings, tool_args)
                         elif tool_name == "wordpress_get_categories":

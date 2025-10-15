@@ -337,6 +337,68 @@ def get_wordpress_tools() -> list:
             }
         },
         {
+            "name": "wordpress_get_pages",
+            "description": "Получить список страниц WordPress",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "per_page": {"type": "number", "description": "Количество страниц"},
+                    "status": {"type": "string", "description": "Статус страниц (publish, draft, any)"}
+                }
+            }
+        },
+        {
+            "name": "wordpress_create_page",
+            "description": "Создать новую страницу в WordPress",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Заголовок страницы"},
+                    "content": {"type": "string", "description": "Содержимое страницы"},
+                    "status": {"type": "string", "description": "Статус (draft, publish)"},
+                    "parent": {"type": "number", "description": "ID родительской страницы (опционально)"}
+                },
+                "required": ["title", "content"]
+            }
+        },
+        {
+            "name": "wordpress_update_page",
+            "description": "Обновить существующую страницу",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page_id": {"type": "number", "description": "ID страницы"},
+                    "title": {"type": "string", "description": "Новый заголовок"},
+                    "content": {"type": "string", "description": "Новое содержимое"},
+                    "status": {"type": "string", "description": "Новый статус"},
+                    "parent": {"type": "number", "description": "ID родительской страницы"}
+                },
+                "required": ["page_id"]
+            }
+        },
+        {
+            "name": "wordpress_delete_page",
+            "description": "Удалить страницу",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "page_id": {"type": "number", "description": "ID страницы для удаления"}
+                },
+                "required": ["page_id"]
+            }
+        },
+        {
+            "name": "wordpress_search_pages",
+            "description": "Поиск страниц по ключевым словам",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "search": {"type": "string", "description": "Поисковый запрос"}
+                },
+                "required": ["search"]
+            }
+        },
+        {
             "name": "wordpress_create_category",
             "description": "Создать категорию",
             "inputSchema": {
