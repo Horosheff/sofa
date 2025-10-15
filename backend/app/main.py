@@ -578,6 +578,10 @@ async def send_sse_event_oauth(
             {"name": "wordpress_update_comment", "description": "Обновить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["comment_id"]}},
             {"name": "wordpress_delete_comment", "description": "Удалить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}}, "required": ["comment_id"]}},
             
+            # Yandex Wordstat (только работающие методы)
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat и статус токена", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_regions", "description": "Получить список регионов для статистики", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}
         ]
         response = {
             "jsonrpc": "2.0",
@@ -1174,10 +1178,10 @@ async def send_sse_event(
         # Проверим, что connector_id существует в базе
     settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
     if not settings:
-            logger.warning(
-                "SSE POST: connector %s not found in database",
-                connector_id,
-            )
+        logger.warning(
+            "SSE POST: connector %s not found in database",
+            connector_id,
+        )
         raise HTTPException(status_code=404, detail="Коннектор не найден")
     
     # Handle JSON-RPC requests
@@ -1239,18 +1243,10 @@ async def send_sse_event(
             {"name": "wordpress_get_comments", "description": "Получить комментарии", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "per_page": {"type": "integer"}, "status": {"type": "string"}}}},
             {"name": "wordpress_moderate_comment", "description": "Модерировать комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "status": {"type": "string", "enum": ["approve", "hold", "spam", "trash"]}}, "required": ["comment_id", "status"]}},
             
-            # Yandex Wordstat
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "date_from": {"type": "string"}, "date_to": {"type": "string"}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_regions", "description": "Получить список регионов", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_auto_setup", "description": "Автоматическая настройка токена Wordstat", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_set_token", "description": "Установить токен доступа Wordstat", "inputSchema": {"type": "object", "properties": {"access_token": {"type": "string"}}, "required": ["access_token"]}},
-            {"name": "wordstat_get_competitors", "description": "Анализ конкурентов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_related_queries", "description": "Получить похожие запросы", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_geography", "description": "Получить географию запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}},
-            {"name": "wordstat_export_data", "description": "Экспорт данных Wordstat", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}, "format": {"type": "string", "enum": ["csv", "json", "xlsx"]}}, "required": ["phrase"]}}
+            # Yandex Wordstat (только работающие методы)
+            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat и статус токена", "inputSchema": {"type": "object"}},
+            {"name": "wordstat_get_regions", "description": "Получить список регионов для статистики", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "region_id": {"type": "integer"}}, "required": ["phrase"]}}
         ]
         
         response = {
@@ -1273,7 +1269,7 @@ async def send_sse_event(
         settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
         if not settings:
             logger.warning("SSE POST: tools/call connector %s not found in database", connector_id)
-    return {
+            return {
                 "jsonrpc": "2.0",
                 "id": request_id,
                 "error": {
@@ -1654,8 +1650,8 @@ async def send_sse_event(
                 }
             }
         
-        logger.info("SSE POST: tools/call response: %s", json.dumps(response))
-        return response
+            logger.info("SSE POST: tools/call response: %s", json.dumps(response))
+            return response
     else:
         # For other methods, send through SSE
         await sse_manager.send(connector_id, payload)
@@ -2063,7 +2059,7 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
 
 
 @app.post("/api/wordstat/refresh-token")
-async def wordstat_refresh_token(current_user: User = Depends(get_current_user)):
+async def wordstat_refresh_token(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Обновить токен доступа Wordstat"""
     try:
         settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
@@ -2114,7 +2110,7 @@ async def wordstat_refresh_token(current_user: User = Depends(get_current_user))
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/wordstat/user-info")
-async def wordstat_user_info(current_user: User = Depends(get_current_user)):
+async def wordstat_user_info(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Получить информацию о пользователе Wordstat"""
     try:
         settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
