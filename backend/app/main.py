@@ -1482,7 +1482,11 @@ async def send_sse_event(
                     # Импортируем функции WordPress
                     from app.wordpress_tools import (
                         wordpress_get_posts, wordpress_create_post, wordpress_update_post,
-                        wordpress_delete_post, wordpress_search_posts, wordpress_upload_image_from_url
+                        wordpress_delete_post, wordpress_search_posts, wordpress_bulk_update_posts,
+                        wordpress_create_category, wordpress_get_categories, wordpress_update_category,
+                        wordpress_delete_category, wordpress_upload_media, wordpress_upload_image_from_url,
+                        wordpress_get_media, wordpress_delete_media, wordpress_create_comment,
+                        wordpress_get_comments, wordpress_update_comment, wordpress_delete_comment
                     )
                     
                     try:
@@ -1496,8 +1500,32 @@ async def send_sse_event(
                             result_content = await wordpress_delete_post(settings, tool_args)
                         elif tool_name == "wordpress_search_posts":
                             result_content = await wordpress_search_posts(settings, tool_args)
+                        elif tool_name == "wordpress_bulk_update_posts":
+                            result_content = await wordpress_bulk_update_posts(settings, tool_args)
+                        elif tool_name == "wordpress_create_category":
+                            result_content = await wordpress_create_category(settings, tool_args)
+                        elif tool_name == "wordpress_get_categories":
+                            result_content = await wordpress_get_categories(settings, tool_args)
+                        elif tool_name == "wordpress_update_category":
+                            result_content = await wordpress_update_category(settings, tool_args)
+                        elif tool_name == "wordpress_delete_category":
+                            result_content = await wordpress_delete_category(settings, tool_args)
+                        elif tool_name == "wordpress_upload_media":
+                            result_content = await wordpress_upload_media(settings, tool_args)
                         elif tool_name == "wordpress_upload_image_from_url":
                             result_content = await wordpress_upload_image_from_url(settings, tool_args)
+                        elif tool_name == "wordpress_get_media":
+                            result_content = await wordpress_get_media(settings, tool_args)
+                        elif tool_name == "wordpress_delete_media":
+                            result_content = await wordpress_delete_media(settings, tool_args)
+                        elif tool_name == "wordpress_create_comment":
+                            result_content = await wordpress_create_comment(settings, tool_args)
+                        elif tool_name == "wordpress_get_comments":
+                            result_content = await wordpress_get_comments(settings, tool_args)
+                        elif tool_name == "wordpress_update_comment":
+                            result_content = await wordpress_update_comment(settings, tool_args)
+                        elif tool_name == "wordpress_delete_comment":
+                            result_content = await wordpress_delete_comment(settings, tool_args)
                         else:
                             result_content = f"❌ WordPress инструмент '{tool_name}' пока не реализован"
                     except Exception as e:
