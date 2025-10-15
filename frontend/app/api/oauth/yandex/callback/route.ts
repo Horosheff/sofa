@@ -10,7 +10,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Проксируем запрос к бэкенду
-    const response = await fetch('http://localhost:8000/api/oauth/yandex/callback', {
+    // Используем переменную окружения или fallback на localhost
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/oauth/yandex/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
