@@ -1,8 +1,9 @@
 # 🚀 ВСЁ ПОДКЛЮЧЕНО by Kov4eg
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Horosheff/sofa/releases/tag/v2.0.0)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/Horosheff/sofa/releases/tag/v3.0.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--03--26-orange.svg)](https://modelcontextprotocol.io)
+[![Wordstat API](https://img.shields.io/badge/Wordstat_API-5_methods_✓-success.svg)](WORDSTAT_API_STATUS.md)
 
 **Подключайте свои аккаунты к ChatGPT через MCP и управляйте Wordstat, WordPress, Telegram, Threads и другими сервисами из одного окна. Быстрый старт, безопасная авторизация.**
 
