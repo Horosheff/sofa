@@ -1,0 +1,37 @@
+# ============================================================
+# ИСПРАВЛЕНИЕ OAUTH CALLBACK - НАСТРОЙКА BACKEND URL
+# ============================================================
+
+# НА СЕРВЕРЕ:
+
+# 1. Обнови код
+cd /opt/sofiya
+git pull origin main
+
+# 2. Создай .env.production для frontend
+cd frontend
+cat > .env.production << 'EOF'
+# Backend URL для production
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+EOF
+
+# 3. Пересобери frontend
+npm run build
+
+# 4. Рестарт frontend
+pm2 restart frontend
+
+# 5. Проверь логи
+pm2 logs frontend --lines 30
+
+# ============================================================
+# ТЕПЕРЬ OAUTH CALLBACK ЗАРАБОТАЕТ!
+# ============================================================
+
+# Что было исправлено:
+# - Frontend API route теперь использует переменную окружения
+# - На production используется localhost:8000 (backend на том же сервере)
+# - Запрос правильно проксируется на /api/oauth/yandex/callback
+
+# ============================================================
+

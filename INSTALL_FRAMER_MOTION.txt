@@ -1,0 +1,32 @@
+# ============================================================
+# УСТАНОВКА FRAMER-MOTION И СБОРКА
+# ============================================================
+
+# 1. Установи framer-motion
+cd /opt/sofiya/frontend
+npm install framer-motion
+
+# 2. Собери frontend
+npm run build
+
+# 3. Запусти через PM2
+pm2 start npm --name frontend --cwd /opt/sofiya/frontend -- start
+
+# 4. Проверь логи
+pm2 logs frontend --lines 20
+
+# 5. Проверь статус
+pm2 list
+
+# 6. Сохрани PM2
+pm2 save
+
+# 7. Проверка
+curl http://localhost:8000/health
+sleep 5
+curl -I http://localhost:3000
+
+# ============================================================
+# ГОТОВО! v4.0.0 РАЗВЁРНУТА!
+# ============================================================
+

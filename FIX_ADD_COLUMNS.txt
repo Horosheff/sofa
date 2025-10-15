@@ -1,0 +1,23 @@
+# ============================================================
+# ПРАВИЛЬНОЕ ИСПРАВЛЕНИЕ - ДОБАВИТЬ КОЛОНКИ!
+# ============================================================
+
+cd /opt/sofiya
+git pull origin main
+cd backend
+pm2 stop backend
+python migrate_db_v4.py
+pm2 start backend
+pm2 logs backend --lines 30
+
+# Должно быть:
+# ✓ Added action_name column to activity_logs
+# ✓ Added status column to activity_logs
+# ✓ Added error_message column to activity_logs
+# ✓ Added ip_address column to activity_logs
+# ✓ Added user_agent column to activity_logs
+
+# Теперь статистика ЗАРАБОТАЕТ!
+
+# ============================================================
+

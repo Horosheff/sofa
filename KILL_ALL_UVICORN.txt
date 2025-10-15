@@ -1,0 +1,40 @@
+# ============================================================
+# УБИТЬ ВСЕ ПРОЦЕССЫ UVICORN
+# ============================================================
+
+# ШАГ 1: Останови текущий PM2 backend
+pm2 stop backend
+pm2 delete backend
+
+# ШАГ 2: Найди ВСЕ процессы uvicorn
+ps aux | grep uvicorn
+
+# ШАГ 3: Убей их ВСЕХ принудительно
+killall -9 uvicorn
+
+# Или по отдельности (если killall не работает):
+# kill -9 38552
+# kill -9 <другие PID если есть>
+
+# ШАГ 4: Убей всё на порту 8000 ещё раз
+fuser -k 8000/tcp
+
+# ШАГ 5: Проверь что порт СВОБОДЕН (должно быть ПУСТО!)
+lsof -i :8000
+
+# Если всё ещё есть процессы - убей их:
+# lsof -ti:8000 | xargs kill -9
+
+# ШАГ 6: Теперь запусти backend
+cd /opt/sofiya/backend
+source venv/bin/activate
+pm2 start "uvicorn app.main:app --host 0.0.0.0 --port 8000" --name backend
+
+# ШАГ 7: Проверь логи
+pm2 logs backend --lines 10
+
+# Должно быть БЕЗ ОШИБОК:
+# INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+# ============================================================
+

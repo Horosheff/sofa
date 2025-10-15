@@ -1,0 +1,56 @@
+# ============================================================
+# ОСТАНОВИТЬ SYSTEMD СЕРВИСЫ И ЗАПУСТИТЬ PM2
+# ============================================================
+
+# Останови все systemd сервисы
+systemctl stop sofa-backend.service
+systemctl stop sofiya-backend.service
+systemctl stop sofiya-frontend.service
+
+# Отключи автозапуск (чтобы не запускались при перезагрузке)
+systemctl disable sofa-backend.service
+systemctl disable sofiya-backend.service
+systemctl disable sofiya-frontend.service
+
+# Проверь что все остановлены
+systemctl status sofa-backend.service
+systemctl status sofiya-backend.service
+systemctl status sofiya-frontend.service
+
+# Проверь порт (должен быть СВОБОДЕН!)
+lsof -i :8000
+
+# Если всё ещё занят - убей процесс
+kill -9 38679
+
+# Проверь снова
+lsof -i :8000  # ДОЛЖНО БЫТЬ ПУСТО!
+
+# ============================================================
+# ЗАПУСК ЧЕРЕЗ PM2
+# ============================================================
+
+# Backend
+cd /opt/sofiya/backend
+source venv/bin/activate
+pm2 start "uvicorn app.main:app --host 0.0.0.0 --port 8000" --name backend
+
+# Frontend
+cd /opt/sofiya/frontend
+pm2 start "npm start" --name frontend
+
+# Проверь
+pm2 list
+pm2 logs backend --lines 20
+pm2 logs frontend --lines 20
+
+# Сохрани конфигурацию PM2
+pm2 save
+pm2 startup
+
+# Выполни команду которую выведет pm2 startup
+
+# ============================================================
+# ГОТОВО! Теперь всё управляется через PM2
+# ============================================================
+

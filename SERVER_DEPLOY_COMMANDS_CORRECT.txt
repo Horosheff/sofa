@@ -1,0 +1,169 @@
+# ============================================================
+# ПРАВИЛЬНЫЕ КОМАНДЫ ДЛЯ ДЕПЛОЯ v4.0.0 НА СЕРВЕР
+# Проект находится в /opt/sofiya (НЕ /var/www/sofa!)
+# ============================================================
+
+# ШАГ 1: Подключись к серверу (если ещё не подключен)
+# ssh root@axjeoptyip (или твой IP/домен)
+
+# ШАГ 2: Перейди в директорию проекта
+cd /opt/sofiya
+
+# ШАГ 3: Создай backup базы данных
+cp backend/app.db backend/app.db.backup_$(date +%Y%m%d_%H%M%S)
+
+# Создай полный backup проекта (на всякий случай)
+cd /opt
+tar -czf sofiya_v3_backup_$(date +%Y%m%d_%H%M%S).tar.gz sofiya/
+
+# ШАГ 4: Вернись в проект и обнови код с GitHub
+cd /opt/sofiya
+git fetch origin
+git pull origin main
+
+# ШАГ 5: Проверь что новые файлы появились
+ls -la backend/app/helpers.py
+ls -la backend/app/mcp_handlers.py
+ls -la backend/app/wordpress_tools.py
+ls -la backend/app/wordstat_tools.py
+ls -la backend/app/admin_routes.py
+
+# ШАГ 6: Backend - активируй venv (если не активирован)
+cd /opt/sofiya/backend
+source venv/bin/activate
+
+# Обнови зависимости (на всякий случай)
+pip install -r requirements.txt
+
+# ВАЖНО: Запусти тесты (должно быть 37/37 passed)
+python test_modules.py
+
+# Если тесты прошли - рестартуй backend
+pm2 restart mcp-backend
+
+# Проверь логи backend (должны быть без ошибок)
+pm2 logs mcp-backend --lines 50
+
+# ШАГ 7: Frontend - пересобери
+cd /opt/sofiya/frontend
+
+# Установи зависимости (если нужно)
+npm install
+
+# Собери production build
+npm run build
+
+# ШАГ 8: Рестарт Frontend
+pm2 restart mcp-frontend
+
+# ШАГ 9: Проверь статус всех сервисов
+pm2 status
+
+# ШАГ 10: Проверь логи (должны быть без ошибок)
+pm2 logs --lines 30
+
+# ШАГ 11: Проверь health endpoint
+curl http://localhost:8000/health
+
+# ШАГ 12: Проверь что frontend отвечает
+curl -I http://localhost:3000
+
+# ШАГ 13: Если у тебя Nginx - проверь его
+sudo systemctl status nginx
+
+# ШАГ 14: Открой в браузере и проверь:
+# - Главная страница загружается
+# - Можешь войти в систему
+# - Видны 25 инструментов (18 WordPress + 7 Wordstat)
+# - Настройки открываются
+# - Есть инструкция по WordPress Application Passwords
+# - Статистика работает
+# - (Опционально) /admin доступен для админов
+
+# ============================================================
+# ГОТОВО! v4.0.0 развёрнута на production
+# ============================================================
+
+# Если что-то пошло не так - ОТКАТ:
+cd /opt/sofiya
+git log --oneline -5  # посмотри последние коммиты
+git checkout e237f1b   # вернись на предыдущую версию (v3)
+pm2 restart all
+
+# Восстанови базу данных (если нужно)
+cp backend/app.db.backup_YYYYMMDD_HHMMSS backend/app.db
+
+# ============================================================
+# ДОПОЛНИТЕЛЬНЫЕ КОМАНДЫ ДЛЯ ПРОВЕРКИ
+# ============================================================
+
+# Посмотреть текущую версию Git
+cd /opt/sofiya && git log --oneline -1
+
+# Посмотреть все теги
+git tag -l
+
+# Посмотреть текущий тег
+git describe --tags
+
+# Посмотреть что изменилось
+git diff HEAD~1 HEAD --stat
+
+# Посмотреть процессы PM2
+pm2 list
+
+# Мониторинг в реальном времени
+pm2 monit
+
+# Посмотреть только ошибки
+pm2 logs --err --lines 50
+
+# Посмотреть использование ресурсов
+free -h
+df -h
+top -bn1 | head -20
+
+# Перезапустить всё (если нужно)
+pm2 restart all
+
+# Сохранить конфигурацию PM2
+pm2 save
+
+# ============================================================
+# ПРОВЕРКА МОДУЛЕЙ (после деплоя)
+# ============================================================
+
+cd /opt/sofiya/backend
+source venv/bin/activate
+
+# Проверь что модули импортируются
+python -c "from app.helpers import is_valid_url; print('✓ helpers.py OK')"
+python -c "from app.mcp_handlers import SseManager; print('✓ mcp_handlers.py OK')"
+python -c "from app.wordpress_tools import handle_wordpress_tool; print('✓ wordpress_tools.py OK')"
+python -c "from app.wordstat_tools import handle_wordstat_tool; print('✓ wordstat_tools.py OK')"
+python -c "from app.admin_routes import router; print('✓ admin_routes.py OK')"
+
+# Запусти полный тест
+python test_modules.py
+
+# Проверь main.py
+python -c "from app.main import app; print('✓ main.py OK')"
+
+echo "Все модули загружены успешно!"
+
+# ============================================================
+# ЕСЛИ НУЖНО ПОСМОТРЕТЬ ЛОГИ NGINX
+# ============================================================
+
+# Логи доступа
+sudo tail -f /var/log/nginx/access.log
+
+# Логи ошибок
+sudo tail -f /var/log/nginx/error.log
+
+# Проверить конфигурацию nginx
+sudo nginx -t
+
+# Перезапустить nginx
+sudo systemctl restart nginx
+

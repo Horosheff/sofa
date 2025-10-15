@@ -1,0 +1,55 @@
+# ============================================================
+# МИГРАЦИЯ БАЗЫ ДАННЫХ v4.0.0
+# ============================================================
+
+# ПРОБЛЕМА: sqlite3.OperationalError: no such column: users.is_admin
+
+# РЕШЕНИЕ: Запустить скрипт миграции
+
+# ШАГ 1: Останови backend
+pm2 stop backend
+
+# ШАГ 2: Перейди в backend директорию
+cd /opt/sofiya/backend
+
+# ШАГ 3: Пул обновлений с GitHub
+cd /opt/sofiya
+git pull origin main
+
+# ШАГ 4: Вернись в backend
+cd backend
+
+# ШАГ 5: Создай backup базы данных
+cp app.db app.db.backup_before_v4_$(date +%Y%m%d_%H%M%S)
+
+# ШАГ 6: Запусти миграцию
+source venv/bin/activate
+python migrate_db_v4.py
+
+# Должен вывести:
+# ✓ Added is_admin column
+# ✓ admin_logs table ready
+# ✓ login_attempts table ready
+# ✓ activity_logs table ready
+# ✓ Database migration completed successfully!
+
+# ШАГ 7: Запусти backend
+pm2 start backend
+
+# ШАГ 8: Проверь логи (должны быть БЕЗ ОШИБОК!)
+pm2 logs backend --lines 30
+
+# ШАГ 9: Проверь статус
+pm2 list
+
+# ШАГ 10: Попробуй залогиниться
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"stich66@mail.ru","password":"your_password"}'
+
+# Должно вернуть access_token!
+
+# ============================================================
+# ГОТОВО! База данных обновлена!
+# ============================================================
+

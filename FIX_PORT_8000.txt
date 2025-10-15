@@ -1,0 +1,55 @@
+# ============================================================
+# ИСПРАВЛЕНИЕ: Порт 8000 занят
+# ============================================================
+
+# ШАГ 1: Останови PM2 backend (он сейчас крашится)
+pm2 stop backend
+pm2 delete backend
+
+# ШАГ 2: Найди процесс который занял порт 8000
+lsof -i :8000
+
+# Или
+netstat -tulpn | grep 8000
+
+# Или
+ss -tulpn | grep 8000
+
+# ШАГ 3: Убей процесс (замени PID на реальный из вывода выше)
+# kill -9 <PID>
+
+# Или сразу убей все процессы на порту 8000:
+fuser -k 8000/tcp
+
+# ШАГ 4: Проверь что порт свободен
+lsof -i :8000
+# Должно быть пусто!
+
+# ШАГ 5: Теперь запусти backend снова
+cd /opt/sofiya/backend
+source venv/bin/activate
+pm2 start "uvicorn app.main:app --host 0.0.0.0 --port 8000" --name backend
+
+# ШАГ 6: Проверь логи (теперь должно быть OK)
+pm2 logs backend --lines 30
+
+# Должно быть:
+# INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+# INFO:     Started reloader process [XXXXX] using WatchFiles
+# INFO:     Started server process [XXXXX]
+# INFO:     Waiting for application startup.
+# INFO:     Application startup complete.
+
+# ШАГ 7: Проверь статус
+pm2 list
+
+# ШАГ 8: Тест health endpoint
+curl http://localhost:8000/health
+
+# Должно вернуть:
+# {"status":"healthy"}
+
+# ============================================================
+# ГОТОВО! Backend запущен через PM2
+# ============================================================
+

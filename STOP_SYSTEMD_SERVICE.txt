@@ -1,0 +1,36 @@
+# ============================================================
+# ОСТАНОВИТЬ SYSTEMD СЕРВИС
+# ============================================================
+
+# Найди все сервисы связанные с sofiya/uvicorn
+systemctl list-units | grep -E "sofiya|uvicorn|mcp"
+
+# Или
+systemctl --type=service | grep -E "sofiya|uvicorn|mcp"
+
+# Посмотри все активные сервисы
+systemctl list-units --type=service --state=running | grep -v "systemd"
+
+# Найди сервис файлы
+ls -la /etc/systemd/system/ | grep -E "sofiya|uvicorn|mcp|backend"
+
+# Когда найдешь имя сервиса - останови его:
+# systemctl stop <имя_сервиса>
+
+# Проверь порт
+lsof -i :8000
+
+# ============================================================
+# ВРЕМЕННОЕ РЕШЕНИЕ: Убей процесс 38679 и СРАЗУ запусти PM2
+# ============================================================
+
+kill -9 38679
+lsof -i :8000  # Должно быть пусто!
+
+# СРАЗУ запусти PM2 (быстро!)
+cd /opt/sofiya/backend
+source venv/bin/activate
+pm2 start "uvicorn app.main:app --host 0.0.0.0 --port 8000" --name backend
+
+# ============================================================
+
