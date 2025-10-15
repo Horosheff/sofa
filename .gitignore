@@ -119,3 +119,13 @@ coverage/
 
 # Local development
 .local/
+
+# Temporary and duplicate files
+sofiya-update.tar.gz
+*_fixed.py
+*_fixed.tsx
+sofiya/
+download/
+
+# Scripts (already on server)
+*.sh

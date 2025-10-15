@@ -260,26 +260,36 @@ export default function ToolsPanel() {
     const isActive = tool === selectedTool
     const label = formatLabel(tool)
     const description = getDescription(tool)
+    const toolKind = detectToolKind(tool)
 
     return (
       <button
         key={tool}
         onClick={() => handleToolSelect(tool)}
         disabled={locked}
-        className={`modern-card p-4 text-left transition-all duration-300 ${
-          isActive ? 'neon-glow border-indigo-400' : 'hover:border-white/30'
+        className={`glass-tool text-left transition-all duration-300 p-4 ${
+          isActive ? 'border-indigo-400 shadow-lg' : ''
         } ${locked ? 'opacity-60 cursor-not-allowed' : ''}`}
       >
-        <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold text-white">{tool}</span>
-          <span className="px-2 py-1 rounded-full text-xs bg-indigo-500/20 text-indigo-300">
-            {label}
-          </span>
+        <div className="flex items-start justify-between mb-2">
+          <span className="font-semibold text-foreground text-sm leading-tight">{tool}</span>
+          <div className="flex items-center gap-2 ml-2">
+            <span className="glass-status text-xs">
+              {label}
+            </span>
+            {!locked && (
+              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+            )}
+          </div>
         </div>
-        <p className="text-sm text-white/70">{description}</p>
-        {locked && (
-          <p className="text-xs text-yellow-400 mt-2">
-            Требуется заполнить настройки в разделе профиля.
+        <p className="text-xs text-foreground/70 leading-relaxed mb-2">{description}</p>
+        {locked ? (
+          <p className="text-xs text-yellow-600">
+            ⚠️ Требуется настройка
+          </p>
+        ) : (
+          <p className="text-xs text-green-600">
+            ✅ Готов к работе
           </p>
         )}
       </button>
@@ -306,21 +316,63 @@ export default function ToolsPanel() {
     <div className="space-y-10">
       <div className="text-center">
         <h2 className="text-3xl font-bold gradient-text mb-4">Инструменты MCP</h2>
-        <p className="text-white/70">
+        <p className="text-foreground/70">
           Управляйте WordPress, Wordstat и сервисами Google через одну панель
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <section className="modern-card p-6 space-y-6">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+      {/* Service Status */}
+      <div className="glass-panel mb-8">
+        <h3 className="text-xl font-bold text-foreground flex items-center gap-2 mb-6">
+          🔗 Статус подключений
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="glass-form flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${settings.has_wordpress_credentials ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div>
+              <h4 className="font-semibold text-foreground">WordPress</h4>
+              <p className="text-sm text-foreground/70">
+                {settings.has_wordpress_credentials ? 'Подключен' : 'Не настроен'}
+              </p>
+            </div>
+          </div>
+          <div className="glass-form flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${settings.has_wordstat_credentials ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div>
+              <h4 className="font-semibold text-foreground">Wordstat</h4>
+              <p className="text-sm text-foreground/70">
+                {settings.has_wordstat_credentials ? 'Подключен' : 'Не настроен'}
+              </p>
+            </div>
+          </div>
+          <div className="glass-form flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div>
+              <h4 className="font-semibold text-foreground">MCP Server</h4>
+              <p className="text-sm text-foreground/70">Активен</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        <section className="glass-panel space-y-6">
+          <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
             🛠️ Доступные команды
           </h3>
 
           {toolGroups.wordpress.length > 0 && (
             <div>
-              <h4 className="text-lg font-semibold text-indigo-300 mb-3">📝 WordPress</h4>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center gap-3 mb-3">
+                <h4 className="text-lg font-semibold text-indigo-600">📝 WordPress</h4>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${settings.has_wordpress_credentials ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-xs text-foreground/70">
+                    {settings.has_wordpress_credentials ? 'Подключен' : 'Не настроен'}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {toolGroups.wordpress.map(renderToolButton)}
               </div>
             </div>
@@ -328,8 +380,16 @@ export default function ToolsPanel() {
 
           {toolGroups.wordstat.length > 0 && (
             <div>
-              <h4 className="text-lg font-semibold text-green-300 mb-3">📊 Wordstat</h4>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center gap-3 mb-3">
+                <h4 className="text-lg font-semibold text-green-600">📊 Wordstat</h4>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${settings.has_wordstat_credentials ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-xs text-foreground/70">
+                    {settings.has_wordstat_credentials ? 'Подключен' : 'Не настроен'}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {toolGroups.wordstat.map(renderToolButton)}
               </div>
             </div>
@@ -337,8 +397,14 @@ export default function ToolsPanel() {
 
           {toolGroups.google.length > 0 && (
             <div>
-              <h4 className="text-lg font-semibold text-red-300 mb-3">🔍 Google (MCP)</h4>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center gap-3 mb-3">
+                <h4 className="text-lg font-semibold text-red-600">🔍 Google (MCP)</h4>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span className="text-xs text-foreground/70">Доступен</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {toolGroups.google.map(renderToolButton)}
               </div>
             </div>
@@ -346,31 +412,38 @@ export default function ToolsPanel() {
 
           {toolGroups.other.length > 0 && (
             <div>
-              <h4 className="text-lg font-semibold text-white/70 mb-3">Дополнительные</h4>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center gap-3 mb-3">
+                <h4 className="text-lg font-semibold text-foreground/70">Дополнительные</h4>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span className="text-xs text-foreground/70">Доступны</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {toolGroups.other.map(renderToolButton)}
               </div>
             </div>
           )}
         </section>
 
-        <section className="modern-card p-6 space-y-6">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            ⚡ Выполнение команды
-          </h3>
+        {/* Command Execution Section */}
+        {selectedTool && (
+          <section className="glass-panel space-y-6">
+            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+              ⚡ Выполнение команды: {selectedTool}
+            </h3>
 
-          {selectedTool ? (
             <div className="space-y-6">
               <div className="space-y-4">
                 {Object.entries(params).length === 0 && (
-                  <p className="text-sm text-white/60">
+                  <p className="text-sm text-foreground/60">
                     Для этого инструмента параметры не требуются. Можно запускать сразу.
                   </p>
                 )}
 
                 {Object.entries(params).map(([key, value]) => (
                   <div key={key}>
-                    <label className="block text-sm font-medium text-white/70 mb-2">
+                    <label className="block text-sm font-medium text-foreground/70 mb-2">
                       {key}
                     </label>
                     <input
@@ -394,25 +467,21 @@ export default function ToolsPanel() {
                 {isLoading ? '⏳ Выполнение...' : '🚀 Выполнить'}
               </button>
             </div>
-          ) : (
-            <div className="text-center py-12 text-white/60">
-              Выберите инструмент слева, чтобы настроить параметры и запустить команду.
-            </div>
-          )}
-        </section>
+          </section>
+        )}
       </div>
 
       {result && (
-        <section className="modern-card p-6">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+        <section className="glass-panel">
+          <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
             📋 Результат выполнения
           </h3>
           <div
-            className={`p-4 rounded-lg ${
-              result.success ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'
+            className={`glass-form ${
+              result.success ? 'border-green-500/30' : 'border-red-500/30'
             }`}
           >
-            <pre className="text-sm text-white/80 overflow-auto max-h-96 whitespace-pre-wrap">
+            <pre className="text-sm text-foreground/80 overflow-auto max-h-96 whitespace-pre-wrap">
               {JSON.stringify(result, null, 2)}
             </pre>
           </div>

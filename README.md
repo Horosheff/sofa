@@ -1,18 +1,28 @@
-# 🚀 MCP WordPress & Wordstat Server
+# 🚀 ВСЁ ПОДКЛЮЧЕНО by Kov4eg
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Horosheff/sofiya/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Horosheff/sofa/releases/tag/v2.0.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-2025--03--26-orange.svg)](https://modelcontextprotocol.io)
 
-A production-ready **Model Context Protocol (MCP) server** with OAuth 2.0, providing seamless integration between AI assistants (ChatGPT, Claude) and WordPress/Yandex Wordstat APIs.
+**Подключайте свои аккаунты к ChatGPT через MCP и управляйте Wordstat, WordPress, Telegram, Threads и другими сервисами из одного окна. Быстрый старт, безопасная авторизация.**
+
+A production-ready **Model Context Protocol (MCP) server** with OAuth 2.0, modern glassmorphism UI, and lava lamp effects, providing seamless integration between AI assistants (ChatGPT, Claude) and multiple APIs.
 
 ## ✨ Features
+
+### 🎨 Modern Glassmorphism UI
+- **Lava Lamp Background** - Animated colorful blobs with dark gradient
+- **Matrix Effect** - Subtle falling Japanese characters
+- **Glassmorphism Design** - Frosted glass effect with blur and transparency
+- **Messenger-style Toasts** - Beautiful notifications with animations
+- **Fully Responsive** - Mobile-first design with smooth transitions
 
 ### 🔐 Full OAuth 2.0 Support
 - **PKCE** (Proof Key for Code Exchange) with S256
 - **Dynamic Client Registration** (RFC 7591)
 - Compatible with ChatGPT Connectors and Make.com
 - Multi-user support with isolated connectors
+- **Manual OAuth Flow** - Simple copy-paste authorization
 
 ### 🛠️ 25 Powerful Tools
 
@@ -49,8 +59,8 @@ A production-ready **Model Context Protocol (MCP) server** with OAuth 2.0, provi
 
 ```bash
 # Clone repository
-git clone https://github.com/Horosheff/sofiya.git
-cd sofiya
+git clone https://github.com/Horosheff/sofa.git
+cd sofa
 
 # Backend setup
 cd backend
@@ -265,7 +275,7 @@ response = httpx.post(
 
 ## 🐛 Bug Reports & Feature Requests
 
-Please use [GitHub Issues](https://github.com/Horosheff/sofiya/issues) to report bugs or request features.
+Please use [GitHub Issues](https://github.com/Horosheff/sofa/issues) to report bugs or request features.
 
 ## 📝 License
 
@@ -282,7 +292,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - **Documentation**: See `DEPLOYMENT.md` for deployment guide
-- **Issues**: [GitHub Issues](https://github.com/Horosheff/sofiya/issues)
+- **Issues**: [GitHub Issues](https://github.com/Horosheff/sofa/issues)
 - **Live Demo**: [https://mcp-kv.ru](https://mcp-kv.ru)
 
 ---

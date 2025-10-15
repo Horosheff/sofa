@@ -82,18 +82,18 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const passwordValidation = validatePassword(password)
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-center">Регистрация</h2>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-white text-center">Регистрация</h2>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="glass-panel p-4 border-red-400/50 bg-red-500/20 text-red-200 rounded-lg">
           {error}
         </div>
       )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="fullName" className="block text-sm font-medium text-white/80 mb-2">
             Полное имя
           </label>
           <input
@@ -102,13 +102,13 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="modern-input w-full"
             placeholder="Введите ваше полное имя"
           />
         </div>
         
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">
             Email
           </label>
           <input
@@ -117,13 +117,13 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="modern-input w-full"
             placeholder="example@email.com"
           />
         </div>
         
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="block text-sm font-medium text-white/80 mb-2">
             Пароль
           </label>
           <div className="relative">
@@ -133,40 +133,44 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="modern-input w-full pr-10"
               placeholder="Введите пароль"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-white/60 hover:text-white transition-colors"
             >
               {showPassword ? '👁️' : '👁️‍🗨️'}
             </button>
           </div>
           
           {/* Индикатор силы пароля */}
-          <div className="mt-2">
-            <div className="text-xs text-gray-600 mb-1">Требования к паролю:</div>
+          <div className="mt-3 glass-panel p-3 rounded-lg">
+            <div className="text-xs text-white/70 mb-2">Требования к паролю:</div>
             <div className="space-y-1">
-              <div className={`text-xs ${passwordValidation.errors.minLength ? 'text-red-500' : 'text-green-500'}`}>
-                ✓ Минимум 8 символов
+              <div className={`text-xs flex items-center gap-2 ${passwordValidation.errors.minLength ? 'text-red-400' : 'text-green-400'}`}>
+                <span>{passwordValidation.errors.minLength ? '✗' : '✓'}</span>
+                Минимум 8 символов
               </div>
-              <div className={`text-xs ${passwordValidation.errors.hasUpperCase ? 'text-red-500' : 'text-green-500'}`}>
-                ✓ Заглавные буквы (A-Z)
+              <div className={`text-xs flex items-center gap-2 ${passwordValidation.errors.hasUpperCase ? 'text-red-400' : 'text-green-400'}`}>
+                <span>{passwordValidation.errors.hasUpperCase ? '✗' : '✓'}</span>
+                Заглавные буквы (A-Z)
               </div>
-              <div className={`text-xs ${passwordValidation.errors.hasLowerCase ? 'text-red-500' : 'text-green-500'}`}>
-                ✓ Строчные буквы (a-z)
+              <div className={`text-xs flex items-center gap-2 ${passwordValidation.errors.hasLowerCase ? 'text-red-400' : 'text-green-400'}`}>
+                <span>{passwordValidation.errors.hasLowerCase ? '✗' : '✓'}</span>
+                Строчные буквы (a-z)
               </div>
-              <div className={`text-xs ${passwordValidation.errors.hasNumbers ? 'text-red-500' : 'text-green-500'}`}>
-                ✓ Цифры (0-9)
+              <div className={`text-xs flex items-center gap-2 ${passwordValidation.errors.hasNumbers ? 'text-red-400' : 'text-green-400'}`}>
+                <span>{passwordValidation.errors.hasNumbers ? '✗' : '✓'}</span>
+                Цифры (0-9)
               </div>
             </div>
           </div>
         </div>
         
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/80 mb-2">
             Подтвердите пароль
           </label>
           <div className="relative">
@@ -176,20 +180,21 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="modern-input w-full pr-10"
               placeholder="Подтвердите пароль"
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-white/60 hover:text-white transition-colors"
             >
               {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
             </button>
           </div>
           
           {confirmPassword && password !== confirmPassword && (
-            <div className="text-xs text-red-500 mt-1">
+            <div className="text-xs text-red-400 mt-2 flex items-center gap-1">
+              <span>✗</span>
               Пароли не совпадают
             </div>
           )}
@@ -198,17 +203,17 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         <button
           type="submit"
           disabled={loading || !passwordValidation.isValid || password !== confirmPassword}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="modern-button w-full py-3 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Регистрация...' : 'Зарегистрироваться'}
         </button>
       </form>
       
-      <p className="mt-4 text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-white/70">
         Уже есть аккаунт?{' '}
         <button
           onClick={onSwitchToLogin}
-          className="text-indigo-600 hover:text-indigo-500"
+          className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
         >
           Войти
         </button>

@@ -30,18 +30,18 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-center">Вход</h2>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-white text-center">Вход</h2>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="glass-panel p-4 border-red-400/50 bg-red-500/20 text-red-200 rounded-lg">
           {error}
         </div>
       )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">
             Email
           </label>
           <input
@@ -50,13 +50,13 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="modern-input w-full"
             placeholder="example@email.com"
           />
         </div>
         
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="block text-sm font-medium text-white/80 mb-2">
             Пароль
           </label>
           <input
@@ -65,7 +65,7 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="modern-input w-full"
             placeholder="Введите пароль"
           />
         </div>
@@ -73,17 +73,17 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="modern-button w-full py-3 text-white font-semibold"
         >
           {loading ? 'Вход...' : 'Войти'}
         </button>
       </form>
       
-      <p className="mt-4 text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-white/70">
         Нет аккаунта?{' '}
         <button
           onClick={onSwitchToRegister}
-          className="text-indigo-600 hover:text-indigo-500"
+          className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
         >
           Зарегистрироваться
         </button>

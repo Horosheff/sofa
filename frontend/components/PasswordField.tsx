@@ -27,7 +27,7 @@ export default function PasswordField({
 
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-white/80 mb-2">
+      <label className="block text-sm font-medium text-foreground/80 mb-2">
         {label}
       </label>
       <div className="relative">
@@ -43,7 +43,7 @@ export default function PasswordField({
         />
         <button
           type="button"
-          className="absolute inset-y-0 right-2 flex items-center text-white/60 hover:text-white"
+          className="absolute inset-y-0 right-2 flex items-center text-foreground/60 hover:text-foreground"
           onClick={() => setVisible((prev) => !prev)}
         >
           {visible ? '🙈' : '👁️'}

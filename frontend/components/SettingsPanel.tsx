@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import PasswordField from './PasswordField'
 import { useAuthStore } from '@/store/authStore'
+import { useToast } from '@/hooks/useToast'
+import ToastContainer from './ToastContainer'
 
 interface SettingsResponse {
   wordpress_url?: string
@@ -32,6 +34,7 @@ interface SettingsFormData {
 }
 
 export default function SettingsPanel() {
+  const { toasts, success, error, removeToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(false)
   const [message, setMessage] = useState('')
@@ -161,7 +164,7 @@ export default function SettingsPanel() {
           : 'https://mcp-kv.ru/dashboard');
       
       const params = new URLSearchParams({
-        client_id: formData.wordstat_client_id,
+        client_id: formData.wordstat_client_id || '',
         redirect_uri: redirectUri,
         response_type: 'code'
       });
@@ -204,9 +207,9 @@ export default function SettingsPanel() {
         throw new Error(detail?.detail || 'Неизвестная ошибка')
       }
 
-      setMessage('Настройки успешно сохранены!')
+      success('Настройки успешно сохранены!')
     } catch (error: any) {
-      setMessage('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
+      error('Ошибка сохранения настроек: ' + (error.message || 'Неизвестная ошибка'))
     } finally {
       setIsLoading(false)
     }
@@ -214,18 +217,16 @@ export default function SettingsPanel() {
 
   const copyAuthUrl = () => {
     navigator.clipboard.writeText(authUrl);
-    setMessage('✅ Ссылка скопирована в буфер обмена!');
-    setTimeout(() => setMessage(''), 3000);
+    success('Ссылка скопирована в буфер обмена!');
   };
 
   const handleCodeSubmit = async () => {
     if (!authCode.trim()) {
-      setMessage('Введите код авторизации');
+      error('Введите код авторизации');
       return;
     }
 
     setIsLoading(true);
-    setMessage('');
     
     try {
       const response = await fetch('/api/oauth/yandex/callback', {
@@ -240,14 +241,14 @@ export default function SettingsPanel() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage('✅ Токен успешно получен и сохранен!');
+        success('Токен успешно получен и сохранен!');
         setAuthCode('');
         setShowCodeInput(false);
       } else {
-        setMessage(data.error || 'Ошибка получения токена');
+        error(data.error || 'Ошибка получения токена');
       }
     } catch (err) {
-      setMessage('Ошибка соединения с сервером');
+      error('Ошибка соединения с сервером');
     } finally {
       setIsLoading(false);
     }
@@ -258,28 +259,28 @@ export default function SettingsPanel() {
       {/* Header */}
       <div className="text-center">
         <h2 className="text-3xl font-bold gradient-text mb-4">Настройки</h2>
-        <p className="text-white/70">Настройте подключения к внешним сервисам</p>
+        <p className="text-foreground/70">Настройте подключения к внешним сервисам</p>
       </div>
 
       {/* User Info */}
-      <div className="modern-card p-6">
-        <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+      <div className="glass-panel">
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
           👤 Информация о пользователе
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Имя пользователя
             </label>
-            <div className="modern-input w-full bg-slate-800/50 text-white/70">
+            <div className="modern-input w-full text-foreground/70">
               {user?.full_name || 'Не указано'}
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Email
             </label>
-            <div className="modern-input w-full bg-slate-800/50 text-white/70">
+            <div className="modern-input w-full text-foreground/70">
               {user?.email || 'Не указано'}
             </div>
           </div>
@@ -288,13 +289,13 @@ export default function SettingsPanel() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* WordPress Settings */}
-        <div className="modern-card p-6">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+        <div className="glass-panel">
+          <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
             📝 WordPress настройки
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
                 URL сайта WordPress
               </label>
               <input
@@ -328,13 +329,13 @@ export default function SettingsPanel() {
         </div>
 
         {/* Wordstat Settings */}
-        <div className="modern-card p-6">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+        <div className="glass-panel">
+          <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
             📊 Wordstat API настройки
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-white/80 mb-2">
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
                 Client ID
               </label>
               <input
@@ -352,7 +353,7 @@ export default function SettingsPanel() {
               placeholder="••••••••"
             />
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-white/80 mb-2">
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
                 Redirect URI
               </label>
               <input
@@ -364,7 +365,8 @@ export default function SettingsPanel() {
               <button
                 type="button"
                 onClick={generateOAuthUrl}
-                className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
+                className="modern-button mt-2 w-full md:w-auto"
+                disabled={isLoading}
               >
                 💾 Сохранить и получить ссылку
               </button>
@@ -373,45 +375,45 @@ export default function SettingsPanel() {
 
           {/* OAuth Section */}
           {watchValues.wordstat_client_id && watchValues.wordstat_client_secret && authUrl && (
-            <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <h4 className="text-lg font-semibold text-blue-300 mb-4">🔐 Авторизация Wordstat</h4>
+            <div className="mt-6 glass-form border-blue-500/30">
+              <h4 className="text-lg font-semibold text-blue-600 mb-4">🔐 Авторизация Wordstat</h4>
               
               {/* Step 1: Copy Link */}
               <div className="mb-4">
-                <h5 className="font-medium text-white mb-2">📋 Шаг 1: Получите код авторизации</h5>
+                <h5 className="font-medium text-foreground mb-2">📋 Шаг 1: Получите код авторизации</h5>
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
                     value={authUrl}
                     readOnly
-                    className="flex-1 p-2 border border-gray-300 rounded text-sm font-mono bg-white text-black"
+                    className="flex-1 modern-input text-sm font-mono"
                   />
                   <button
                     onClick={copyAuthUrl}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium"
+                    className="modern-button px-3 py-2 text-sm font-medium"
                   >
                     📋 Скопировать
                   </button>
                 </div>
-                <p className="text-xs text-white/70 mt-2">
+                <p className="text-xs text-foreground/70 mt-2">
                   Скопируйте ссылку и откройте её в новой вкладке для авторизации в Yandex
                 </p>
               </div>
 
               {/* Step 2: Enter Code */}
               <div>
-                <h5 className="font-medium text-white mb-2">🔑 Шаг 2: Введите код авторизации</h5>
+                <h5 className="font-medium text-foreground mb-2">🔑 Шаг 2: Введите код авторизации</h5>
                 {!showCodeInput ? (
                   <button
                     onClick={() => setShowCodeInput(true)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                    className="modern-button bg-green-500/20 border-green-500/30 text-green-600 hover:bg-green-500/30 px-4 py-2 text-sm font-medium"
                   >
                     📝 Ввести код авторизации
                   </button>
                 ) : (
                   <div className="space-y-3">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-800 mb-2">
+                    <div className="glass-form border-blue-500/30">
+                      <p className="text-sm text-foreground mb-2">
                         После авторизации в Yandex вы будете перенаправлены на страницу с кодом в URL.
                         Скопируйте код из адресной строки (параметр <code>code=</code>) и вставьте его ниже:
                       </p>
@@ -424,13 +426,13 @@ export default function SettingsPanel() {
                       value={authCode}
                       onChange={(e) => setAuthCode(e.target.value)}
                       placeholder="Вставьте код авторизации здесь..."
-                      className="w-full p-3 border border-gray-300 rounded-md text-sm text-black"
+                      className="w-full modern-input text-sm"
                     />
                     <div className="flex space-x-2">
                       <button
                         onClick={handleCodeSubmit}
                         disabled={isLoading}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md text-sm font-medium"
+                        className="modern-button bg-green-500/20 border-green-500/30 text-green-600 hover:bg-green-500/30 disabled:opacity-50 px-4 py-2 text-sm font-medium"
                       >
                         {isLoading ? '⏳ Получение токена...' : '✅ Получить токен'}
                       </button>
@@ -439,7 +441,7 @@ export default function SettingsPanel() {
                           setShowCodeInput(false);
                           setAuthCode('');
                         }}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+                        className="modern-button bg-gray-500/20 border-gray-500/30 text-gray-600 hover:bg-gray-500/30 px-4 py-2 text-sm font-medium"
                       >
                         ❌ Отмена
                       </button>
@@ -448,9 +450,9 @@ export default function SettingsPanel() {
                 )}
               </div>
 
-              <div className="mt-4 p-3 bg-blue-500/10 rounded">
-                <h6 className="text-sm font-semibold text-blue-300 mb-2">ℹ️ Инструкция:</h6>
-                <ol className="text-xs text-white/70 space-y-1 list-decimal list-inside">
+              <div className="mt-4 glass-form border-blue-500/30">
+                <h6 className="text-sm font-semibold text-blue-600 mb-2">ℹ️ Инструкция:</h6>
+                <ol className="text-xs text-foreground/70 space-y-1 list-decimal list-inside">
                   <li>Нажмите "Скопировать" и откройте ссылку в новой вкладке</li>
                   <li>Авторизуйтесь в Yandex и разрешите доступ приложению</li>
                   <li>Скопируйте код из адресной строки (параметр code=)</li>
@@ -462,8 +464,8 @@ export default function SettingsPanel() {
         </div>
 
         {/* MCP SSE Settings */}
-        <div className="modern-card p-6">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+        <div className="glass-panel">
+          <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
             🔗 MCP SSE сервер
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -484,9 +486,9 @@ export default function SettingsPanel() {
               readOnly
             />
           </div>
-          <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <h4 className="text-sm font-semibold text-blue-300 mb-2">📋 Как получить MCP SSE URL:</h4>
-            <ol className="text-xs text-white/70 space-y-1 list-decimal list-inside">
+          <div className="mt-4 glass-form border-blue-500/30">
+            <h4 className="text-sm font-semibold text-blue-600 mb-2">📋 Как получить MCP SSE URL:</h4>
+            <ol className="text-xs text-foreground/70 space-y-1 list-decimal list-inside">
               <li>После регистрации система автоматически создаст ваш уникальный коннектор</li>
               <li>Скопируйте URL из поля выше</li>
               <li>Используйте этот URL в ChatGPT или других AI клиентах</li>
@@ -499,13 +501,13 @@ export default function SettingsPanel() {
         {/* Removed general settings per requirements */}
 
         {message && (
-          <div className={`modern-card p-4 ${
+          <div className={`glass-form ${
             message.includes('Ошибка') 
-              ? 'bg-red-500/10 border border-red-500/20' 
-              : 'bg-green-500/10 border border-green-500/20'
+              ? 'border-red-500/30' 
+              : 'border-green-500/30'
           }`}>
             <div className={`text-sm ${
-              message.includes('Ошибка') ? 'text-red-400' : 'text-green-400'
+              message.includes('Ошибка') ? 'text-red-600' : 'text-green-600'
             }`}>
               {message}
             </div>
@@ -520,6 +522,9 @@ export default function SettingsPanel() {
           {isLoading ? '⏳ Сохранение...' : '💾 Сохранить настройки'}
         </button>
       </form>
+      
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }
