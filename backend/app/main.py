@@ -1463,10 +1463,58 @@ async def send_sse_event(
                         }]
                     }
                 }
+            
+            # ==================== WORDPRESS TOOLS ====================
+            elif tool_name.startswith("wordpress_"):
+                # Проверяем настройки WordPress
+                if not settings.wordpress_url or not settings.wordpress_username or not settings.wordpress_password:
+                    result_content = """❌ WordPress не настроен!
+
+📋 Что нужно сделать:
+1. Зайдите на dashboard по адресу https://mcp-kv.ru
+2. В разделе "Настройки" заполните поля WordPress:
+   - URL сайта WordPress
+   - Имя пользователя
+   - Application Password
+
+После настройки попробуйте снова!"""
+                else:
+                    # Импортируем функции WordPress
+                    from app.wordpress_tools import (
+                        wordpress_get_posts, wordpress_create_post, wordpress_update_post,
+                        wordpress_delete_post, wordpress_search_posts
+                    )
+                    
+                    try:
+                        if tool_name == "wordpress_get_posts":
+                            result_content = await wordpress_get_posts(settings, tool_args)
+                        elif tool_name == "wordpress_create_post":
+                            result_content = await wordpress_create_post(settings, tool_args)
+                        elif tool_name == "wordpress_update_post":
+                            result_content = await wordpress_update_post(settings, tool_args)
+                        elif tool_name == "wordpress_delete_post":
+                            result_content = await wordpress_delete_post(settings, tool_args)
+                        elif tool_name == "wordpress_search_posts":
+                            result_content = await wordpress_search_posts(settings, tool_args)
+                        else:
+                            result_content = f"❌ WordPress инструмент '{tool_name}' пока не реализован"
+                    except Exception as e:
+                        result_content = f"❌ Ошибка WordPress API: {str(e)}"
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
                 
             else:
                 # Для остальных инструментов
-                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: get_user_info, get_regions, get_top_requests, auto_setup, set_token"
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post, update_post, delete_post, search_posts\n• Wordstat: get_user_info, get_regions_tree, get_top_requests, get_dynamics, get_regions, auto_setup, set_token"
                 
                 response = {
                     "jsonrpc": "2.0",
