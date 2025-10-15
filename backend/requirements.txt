@@ -11,3 +11,4 @@ email-validator
 fastapi-limiter
 redis
 sse-starlette
+python-telegram-bot

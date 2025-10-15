@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 interface UserSettings {
   has_wordpress_credentials: boolean
   has_wordstat_credentials: boolean
+  has_telegram_bot: boolean
 }
 
 interface ExecuteResult {
@@ -17,7 +18,7 @@ interface ExecuteResult {
 
 type ToolsDictionary = Record<string, string[]>
 
-type ToolKind = 'wordpress' | 'wordstat' | 'google' | 'other'
+type ToolKind = 'wordpress' | 'wordstat' | 'telegram' | 'google' | 'other'
 
 const WORDPRESS_TOOLS = new Set([
   'create_post',
@@ -48,6 +49,75 @@ const WORDSTAT_TOOLS = new Set([
   'get_wordstat_regions',
   'get_wordstat_user_info',
   'auto_setup_wordstat',
+])
+
+const TELEGRAM_TOOLS = new Set([
+  'create_bot',
+  'send_message',
+  'send_photo',
+  'send_document',
+  'set_webhook',
+  'delete_webhook',
+  'get_webhook_info',
+  'get_bot_info',
+  'get_updates',
+  'set_commands',
+  'get_commands',
+  'delete_message',
+  'edit_message',
+  'pin_message',
+  'unpin_message',
+  'get_chat',
+  'get_chat_member',
+  'ban_chat_member',
+  'unban_chat_member',
+  'promote_chat_member',
+  'restrict_chat_member',
+  'export_chat_invite_link',
+  'create_chat_invite_link',
+  'revoke_chat_invite_link',
+  'approve_chat_join_request',
+  'decline_chat_join_request',
+  'set_chat_photo',
+  'delete_chat_photo',
+  'set_chat_title',
+  'set_chat_description',
+  'pin_chat_message',
+  'unpin_chat_message',
+  'unpin_all_chat_messages',
+  'leave_chat',
+  'answer_callback_query',
+  'answer_inline_query',
+  'stop_poll',
+  'send_poll',
+  'send_dice',
+  'send_game',
+  'send_invoice',
+  'send_media_group',
+  'send_animation',
+  'send_audio',
+  'send_video',
+  'send_video_note',
+  'send_voice',
+  'send_sticker',
+  'get_sticker_set',
+  'upload_sticker_file',
+  'create_new_sticker_set',
+  'add_sticker_to_set',
+  'set_sticker_position_in_set',
+  'delete_sticker_from_set',
+  'set_sticker_set_thumb',
+  'send_chat_action',
+  'get_user_profile_photos',
+  'get_file',
+  'kick_chat_member',
+  'set_chat_administrator_custom_title',
+  'ban_chat_sender_chat',
+  'unban_chat_sender_chat',
+  'set_chat_permissions',
+  'edit_chat_invite_link',
+  'set_chat_sticker_set',
+  'delete_chat_sticker_set'
 ])
 
 const GOOGLE_TOOLS = new Set([
@@ -122,6 +192,7 @@ const DEFAULT_PARAMS: Record<string, Record<string, any>> = {
 function detectToolKind(tool: string): ToolKind {
   if (WORDPRESS_TOOLS.has(tool)) return 'wordpress'
   if (WORDSTAT_TOOLS.has(tool)) return 'wordstat'
+  if (TELEGRAM_TOOLS.has(tool)) return 'telegram'
   if (GOOGLE_TOOLS.has(tool)) return 'google'
   return 'other'
 }
@@ -132,6 +203,8 @@ function formatLabel(tool: string): string {
       return 'WordPress'
     case 'wordstat':
       return 'Wordstat'
+    case 'telegram':
+      return 'Telegram'
     case 'google':
       return 'MCP'
     default:
@@ -209,6 +282,7 @@ export default function ToolsPanel() {
     const kind = detectToolKind(tool)
     if (kind === 'wordpress') return settings.has_wordpress_credentials
     if (kind === 'wordstat') return settings.has_wordstat_credentials
+    if (kind === 'telegram') return settings.has_telegram_bot
     return true
   }
 
@@ -300,6 +374,7 @@ export default function ToolsPanel() {
     const groups: Record<ToolKind, string[]> = {
       wordpress: [],
       wordstat: [],
+      telegram: [],
       google: [],
       other: [],
     }
@@ -342,6 +417,15 @@ export default function ToolsPanel() {
               <h4 className="font-semibold text-foreground">Wordstat</h4>
               <p className="text-sm text-foreground/70">
                 {settings.has_wordstat_credentials ? 'Подключен' : 'Не настроен'}
+              </p>
+            </div>
+          </div>
+          <div className="glass-form flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${settings.has_telegram_bot ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div>
+              <h4 className="font-semibold text-foreground">Telegram</h4>
+              <p className="text-sm text-foreground/70">
+                {settings.has_telegram_bot ? 'Подключен' : 'Не настроен'}
               </p>
             </div>
           </div>
@@ -391,6 +475,23 @@ export default function ToolsPanel() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {toolGroups.wordstat.map(renderToolButton)}
+              </div>
+            </div>
+          )}
+
+          {toolGroups.telegram.length > 0 && (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <h4 className="text-lg font-semibold text-blue-600">🤖 Telegram</h4>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${settings.has_telegram_bot ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-xs text-foreground/70">
+                    {settings.has_telegram_bot ? 'Подключен' : 'Не настроен'}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {toolGroups.telegram.map(renderToolButton)}
               </div>
             </div>
           )}

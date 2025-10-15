@@ -47,6 +47,11 @@ class UserSettings(Base):
     mcp_sse_url = Column(String, nullable=True)
     mcp_connector_id = Column(String, nullable=True, unique=True)
     
+    # Telegram Bot настройки
+    telegram_bot_token = Column(String, nullable=True)  # Зашифрованный токен бота
+    telegram_webhook_url = Column(String, nullable=True)
+    telegram_webhook_secret = Column(String, nullable=True)  # Зашифрованный секрет webhook
+    
     # Дополнительные настройки
     timezone = Column(String, default="UTC")
     language = Column(String, default="ru")

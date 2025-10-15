@@ -14,6 +14,7 @@ interface SettingsResponse {
   wordstat_client_id?: string
   wordstat_client_secret?: string
   wordstat_redirect_uri?: string
+  telegram_webhook_url?: string
   mcp_sse_url?: string
   mcp_connector_id?: string
   timezone?: string
@@ -27,6 +28,9 @@ interface SettingsFormData {
   wordstat_client_id?: string
   wordstat_client_secret?: string
   wordstat_redirect_uri?: string
+  telegram_bot_token?: string
+  telegram_webhook_url?: string
+  telegram_webhook_secret?: string
   mcp_sse_url?: string
   mcp_connector_id?: string
   timezone?: string
@@ -59,6 +63,9 @@ export default function SettingsPanel() {
         wordstat_client_id: '',
         wordstat_client_secret: '',
         wordstat_redirect_uri: '',
+        telegram_bot_token: '',
+        telegram_webhook_url: '',
+        telegram_webhook_secret: '',
         mcp_sse_url: '',
         mcp_connector_id: '',
         timezone: 'UTC',
@@ -71,6 +78,8 @@ export default function SettingsPanel() {
   const watchValues = {
     wordpress_password: watch('wordpress_password'),
     wordstat_client_secret: watch('wordstat_client_secret'),
+    telegram_bot_token: watch('telegram_bot_token'),
+    telegram_webhook_secret: watch('telegram_webhook_secret'),
     mcp_sse_url: watch('mcp_sse_url'),
     mcp_connector_id: watch('mcp_connector_id'),
     wordstat_client_id: watch('wordstat_client_id'),
@@ -488,6 +497,60 @@ export default function SettingsPanel() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Telegram Bot Settings */}
+        <div className="glass-panel">
+          <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
+            🤖 Telegram Bot настройки
+          </h3>
+          
+          {/* Инструкция по созданию бота */}
+          <div className="glass-form p-4 mb-6 border-l-4 border-blue-400/50">
+            <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center">
+              💡 Как создать Telegram бота:
+            </h4>
+            <ol className="text-sm text-foreground/70 space-y-2 list-decimal list-inside">
+              <li>Найдите <strong>@BotFather</strong> в Telegram</li>
+              <li>Отправьте команду <code className="text-xs bg-white/10 px-2 py-1 rounded">/newbot</code></li>
+              <li>Введите имя для вашего бота (например: "My Awesome Bot")</li>
+              <li>Введите username для бота (например: "my_awesome_bot")</li>
+              <li>Скопируйте полученный токен и вставьте в поле ниже</li>
+            </ol>
+            <p className="text-xs text-foreground/50 mt-3">
+              🔐 <strong>Безопасность:</strong> Токен бота дает полный доступ к управлению ботом. Храните его в безопасности!
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PasswordField
+              label="Токен бота"
+              name="telegram_bot_token"
+              value={watchValues.telegram_bot_token}
+              onChange={(value) => setValue('telegram_bot_token', value, { shouldDirty: true })}
+              placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+              className="md:col-span-2"
+            />
+            <div>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Webhook URL (опционально)
+              </label>
+              <input
+                {...register('telegram_webhook_url')}
+                type="url"
+                className="modern-input w-full"
+                placeholder="https://your-domain.com/webhook"
+              />
+              <p className="text-xs text-foreground/50 mt-1">URL для получения обновлений от Telegram</p>
+            </div>
+            <PasswordField
+              label="Webhook Secret (опционально)"
+              name="telegram_webhook_secret"
+              value={watchValues.telegram_webhook_secret}
+              onChange={(value) => setValue('telegram_webhook_secret', value, { shouldDirty: true })}
+              placeholder="your-secret-key"
+            />
+          </div>
         </div>
 
         {/* MCP SSE Settings */}

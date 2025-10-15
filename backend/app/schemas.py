@@ -24,6 +24,8 @@ class UserSettingsResponse(BaseModel):
     wordpress_username: Optional[str] = None
     has_wordpress_credentials: bool
     has_wordstat_credentials: bool
+    has_telegram_bot: bool
+    telegram_webhook_url: Optional[str] = None
     mcp_sse_url: Optional[str] = None
     mcp_connector_id: Optional[str] = None
     timezone: str = "UTC"
@@ -39,6 +41,9 @@ class UserSettingsUpdate(BaseModel):
     wordstat_client_id: Optional[str] = None
     wordstat_client_secret: Optional[str] = None
     wordstat_redirect_uri: Optional[str] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_webhook_url: Optional[str] = None
+    telegram_webhook_secret: Optional[str] = None
     mcp_sse_url: Optional[str] = None
     mcp_connector_id: Optional[str] = None
     timezone: Optional[str] = None

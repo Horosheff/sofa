@@ -30,6 +30,7 @@ from .schemas import UserCreate, UserLogin, MCPRequest, MCPResponse
 from .admin_routes import router as admin_router
 from .wordpress_tools import handle_wordpress_tool
 from .wordstat_tools import handle_wordstat_tool
+from .telegram_tools import handle_telegram_tool
 from .helpers import (
     create_jsonrpc_response,
     create_jsonrpc_error,
@@ -302,6 +303,7 @@ async def get_user_settings(
     has_wordstat = bool(
         settings.wordstat_client_id and settings.wordstat_client_secret
     )
+    has_telegram = bool(settings.telegram_bot_token)
     
     return {
         "wordpress_url": settings.wordpress_url,
@@ -310,12 +312,14 @@ async def get_user_settings(
         "wordstat_client_id": settings.wordstat_client_id,
         "wordstat_client_secret": settings.wordstat_client_secret,
         "wordstat_redirect_uri": settings.wordstat_redirect_uri,
+        "telegram_webhook_url": settings.telegram_webhook_url,
         "mcp_sse_url": settings.mcp_sse_url,
         "mcp_connector_id": settings.mcp_connector_id,
         "timezone": settings.timezone,
         "language": settings.language,
         "has_wordpress_credentials": has_wordpress,
-        "has_wordstat_credentials": has_wordstat
+        "has_wordstat_credentials": has_wordstat,
+        "has_telegram_bot": has_telegram
     }
 
 @app.put("/user/settings")
@@ -334,6 +338,7 @@ async def update_user_settings(
     allowed_fields = [
         'wordpress_url', 'wordpress_username', 'wordpress_password',
         'wordstat_client_id', 'wordstat_client_secret', 'wordstat_redirect_uri',
+        'telegram_bot_token', 'telegram_webhook_url', 'telegram_webhook_secret',
         'timezone', 'language'
     ]
     
@@ -657,10 +662,13 @@ async def send_sse_event_oauth(
             elif tool_name.startswith("wordstat_"):
                 result_content = await handle_wordstat_tool(tool_name, settings, tool_args, db)
             
+            # === TELEGRAM TOOLS ===
+            elif tool_name.startswith("telegram_"):
+                result_content = await handle_telegram_tool(tool_name, tool_args, user.id, db)
             
             # === UNKNOWN TOOL ===
             else:
-                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: 18 инструментов (posts, categories, media, comments)\n• Wordstat: 7 инструментов (user_info, regions_tree, top_requests, dynamics, regions, set_token, auto_setup)"
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: 18 инструментов (posts, categories, media, comments)\n• Wordstat: 7 инструментов (user_info, regions_tree, top_requests, dynamics, regions, set_token, auto_setup)\n• Telegram: 50+ инструментов (создание ботов, отправка сообщений, управление чатами)"
             response = {
                 "jsonrpc": "2.0",
                 "id": request_id,
