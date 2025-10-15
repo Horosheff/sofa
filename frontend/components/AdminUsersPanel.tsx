@@ -73,7 +73,7 @@ const AdminUsersPanel: React.FC = () => {
       const response = await axios.get<UserDetails>(`/api/admin/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      setSelectedUser(response.data.user as any)
+      setSelectedUser(response.data as any)
       setShowDetails(true)
     } catch (err: any) {
       console.error('Ошибка загрузки деталей:', err)
