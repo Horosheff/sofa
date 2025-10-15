@@ -614,40 +614,8 @@ async def send_sse_event_oauth(
         # ChatGPT ожидает ответ напрямую в HTTP response, а не через SSE
         return response
     elif method == "tools/list":
-        tools = [
-            # WordPress Posts
-            {"name": "wordpress_create_post", "description": "Создать новый пост в WordPress", "inputSchema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}, "status": {"type": "string", "enum": ["publish", "draft"]}}, "required": ["title", "content"]}},
-            {"name": "wordpress_update_post", "description": "Обновить существующий пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "title": {"type": "string"}, "content": {"type": "string"}}, "required": ["post_id"]}},
-            {"name": "wordpress_get_posts", "description": "Получить список постов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "status": {"type": "string"}}}},
-            {"name": "wordpress_delete_post", "description": "Удалить пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}}, "required": ["post_id"]}},
-            {"name": "wordpress_search_posts", "description": "Поиск постов по ключевым словам", "inputSchema": {"type": "object", "properties": {"search": {"type": "string"}}, "required": ["search"]}},
-            {"name": "wordpress_bulk_update_posts", "description": "Массовое обновление постов", "inputSchema": {"type": "object", "properties": {"post_ids": {"type": "array", "items": {"type": "integer"}}, "updates": {"type": "object"}}, "required": ["post_ids", "updates"]}},
-            
-            # WordPress Categories
-            {"name": "wordpress_create_category", "description": "Создать категорию", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}},
-            {"name": "wordpress_get_categories", "description": "Получить список категорий", "inputSchema": {"type": "object", "properties": {}}},
-            {"name": "wordpress_update_category", "description": "Обновить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}, "name": {"type": "string"}}, "required": ["category_id"]}},
-            {"name": "wordpress_delete_category", "description": "Удалить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}}, "required": ["category_id"]}},
-            
-            # WordPress Media
-            {"name": "wordpress_upload_media", "description": "Загрузить медиа файл", "inputSchema": {"type": "object", "properties": {"file_url": {"type": "string"}, "title": {"type": "string"}}, "required": ["file_url"]}},
-            {"name": "wordpress_upload_image_from_url", "description": "Загрузить изображение по URL", "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}},
-            {"name": "wordpress_get_media", "description": "Получить список медиа", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}}}},
-            {"name": "wordpress_delete_media", "description": "Удалить медиа", "inputSchema": {"type": "object", "properties": {"media_id": {"type": "integer"}}, "required": ["media_id"]}},
-            
-            # WordPress Comments
-            {"name": "wordpress_create_comment", "description": "Создать комментарий", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["post_id", "content"]}},
-            {"name": "wordpress_get_comments", "description": "Получить список комментариев", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}}}},
-            {"name": "wordpress_update_comment", "description": "Обновить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "content": {"type": "string"}}, "required": ["comment_id"]}},
-            {"name": "wordpress_delete_comment", "description": "Удалить комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}}, "required": ["comment_id"]}},
-            
-            # Yandex Wordstat API (v1) - все 5 методов
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat (/v1/userInfo)", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов (/v1/getRegionsTree)", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "numPhrases": {"type": "integer", "description": "Количество запросов", "default": 50}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов (225=Россия)", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"], "description": "Период", "default": "monthly"}, "fromDate": {"type": "string", "description": "Дата начала (YYYY-MM-DD)"}, "toDate": {"type": "string", "description": "Дата окончания (YYYY-MM-DD)"}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase", "fromDate"]}},
-            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"], "description": "Тип регионов", "default": "all"}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства (НЕ 'mobile'!)", "default": ["all"]}}, "required": ["phrase"]}}
-        ]
+        # Используем централизованные определения из mcp_handlers.py
+        tools = get_all_mcp_tools()
         response = {
             "jsonrpc": "2.0",
             "id": request_id,
@@ -883,50 +851,8 @@ async def send_sse_event(
         logger.info("SSE POST: Responding to initialize with: %s", json.dumps(response))
         return response
     elif method == "tools/list":
-        tools = [
-            # WordPress Posts
-            {"name": "wordpress_create_post", "description": "Создать новый пост в WordPress", "inputSchema": {"type": "object", "properties": {"title": {"type": "string"}, "content": {"type": "string"}, "status": {"type": "string", "enum": ["publish", "draft"]}}, "required": ["title", "content"]}},
-            {"name": "wordpress_update_post", "description": "Обновить существующий пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "title": {"type": "string"}, "content": {"type": "string"}}, "required": ["post_id"]}},
-            {"name": "wordpress_get_posts", "description": "Получить список постов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "status": {"type": "string"}}}},
-            {"name": "wordpress_delete_post", "description": "Удалить пост", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}}, "required": ["post_id"]}},
-            {"name": "wordpress_search_posts", "description": "Поиск постов по ключевым словам", "inputSchema": {"type": "object", "properties": {"search": {"type": "string"}}, "required": ["search"]}},
-            {"name": "wordpress_bulk_update_posts", "description": "Массовое обновление постов", "inputSchema": {"type": "object", "properties": {"post_ids": {"type": "array", "items": {"type": "integer"}}, "updates": {"type": "object"}}, "required": ["post_ids", "updates"]}},
-            
-            # WordPress Categories
-            {"name": "wordpress_create_category", "description": "Создать новую категорию", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}, "slug": {"type": "string"}, "description": {"type": "string"}}, "required": ["name"]}},
-            {"name": "wordpress_get_categories", "description": "Получить список категорий", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}}}},
-            {"name": "wordpress_update_category", "description": "Обновить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}, "name": {"type": "string"}, "description": {"type": "string"}}, "required": ["category_id"]}},
-            {"name": "wordpress_delete_category", "description": "Удалить категорию", "inputSchema": {"type": "object", "properties": {"category_id": {"type": "integer"}}, "required": ["category_id"]}},
-            
-            # WordPress Tags
-            {"name": "wordpress_create_tag", "description": "Создать новый тег", "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}, "slug": {"type": "string"}, "description": {"type": "string"}}, "required": ["name"]}},
-            {"name": "wordpress_get_tags", "description": "Получить список тегов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}}}},
-            {"name": "wordpress_update_tag", "description": "Обновить тег", "inputSchema": {"type": "object", "properties": {"tag_id": {"type": "integer"}, "name": {"type": "string"}, "description": {"type": "string"}}, "required": ["tag_id"]}},
-            {"name": "wordpress_delete_tag", "description": "Удалить тег", "inputSchema": {"type": "object", "properties": {"tag_id": {"type": "integer"}}, "required": ["tag_id"]}},
-            
-            # WordPress Media
-            {"name": "wordpress_upload_media", "description": "Загрузить медиафайл", "inputSchema": {"type": "object", "properties": {"file_path": {"type": "string"}, "title": {"type": "string"}, "alt_text": {"type": "string"}}, "required": ["file_path"]}},
-            {"name": "wordpress_upload_image_from_url", "description": "Загрузить изображение по URL", "inputSchema": {"type": "object", "properties": {"image_url": {"type": "string"}, "title": {"type": "string"}, "alt_text": {"type": "string"}}, "required": ["image_url"]}},
-            {"name": "wordpress_get_media", "description": "Получить список медиафайлов", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "media_type": {"type": "string"}}}},
-            {"name": "wordpress_delete_media", "description": "Удалить медиафайл", "inputSchema": {"type": "object", "properties": {"media_id": {"type": "integer"}}, "required": ["media_id"]}},
-            
-            # WordPress Users
-            {"name": "wordpress_get_users", "description": "Получить список пользователей", "inputSchema": {"type": "object", "properties": {"per_page": {"type": "integer"}, "role": {"type": "string"}}}},
-            {"name": "wordpress_create_user", "description": "Создать нового пользователя", "inputSchema": {"type": "object", "properties": {"username": {"type": "string"}, "email": {"type": "string"}, "password": {"type": "string"}, "role": {"type": "string"}}, "required": ["username", "email", "password"]}},
-            {"name": "wordpress_update_user", "description": "Обновить пользователя", "inputSchema": {"type": "object", "properties": {"user_id": {"type": "integer"}, "email": {"type": "string"}, "role": {"type": "string"}}, "required": ["user_id"]}},
-            {"name": "wordpress_delete_user", "description": "Удалить пользователя", "inputSchema": {"type": "object", "properties": {"user_id": {"type": "integer"}}, "required": ["user_id"]}},
-            
-            # WordPress Comments
-            {"name": "wordpress_get_comments", "description": "Получить комментарии", "inputSchema": {"type": "object", "properties": {"post_id": {"type": "integer"}, "per_page": {"type": "integer"}, "status": {"type": "string"}}}},
-            {"name": "wordpress_moderate_comment", "description": "Модерировать комментарий", "inputSchema": {"type": "object", "properties": {"comment_id": {"type": "integer"}, "status": {"type": "string", "enum": ["approve", "hold", "spam", "trash"]}}, "required": ["comment_id", "status"]}},
-            
-            # Yandex Wordstat API (v1) - все 5 методов
-            {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat (/v1/userInfo)", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов (/v1/getRegionsTree)", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "numPhrases": {"type": "integer", "description": "Количество запросов", "default": 50}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов (225=Россия)", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"], "description": "Период", "default": "monthly"}, "fromDate": {"type": "string", "description": "Дата начала (YYYY-MM-DD)"}, "toDate": {"type": "string", "description": "Дата окончания (YYYY-MM-DD)"}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase", "fromDate"]}},
-            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"], "description": "Тип регионов", "default": "all"}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства (НЕ 'mobile'!)", "default": ["all"]}}, "required": ["phrase"]}}
-        ]
+        # Используем централизованные определения из mcp_handlers.py
+        tools = get_all_mcp_tools()
         
         response = {
             "jsonrpc": "2.0",
@@ -1485,10 +1411,13 @@ async def send_sse_event(
                         wordpress_delete_post, wordpress_search_posts, wordpress_bulk_update_posts,
                         wordpress_get_pages, wordpress_create_page, wordpress_update_page,
                         wordpress_delete_page, wordpress_search_pages,
+                        wordpress_get_tags, wordpress_create_tag, wordpress_update_tag, wordpress_delete_tag,
                         wordpress_create_category, wordpress_get_categories, wordpress_update_category,
                         wordpress_delete_category, wordpress_upload_media, wordpress_upload_image_from_url,
                         wordpress_get_media, wordpress_delete_media, wordpress_create_comment,
-                        wordpress_get_comments, wordpress_update_comment, wordpress_delete_comment
+                        wordpress_get_comments, wordpress_update_comment, wordpress_delete_comment,
+                        wordpress_moderate_comment, wordpress_get_users, wordpress_create_user,
+                        wordpress_update_user, wordpress_delete_user
                     )
                     
                     try:
@@ -1514,6 +1443,14 @@ async def send_sse_event(
                             result_content = await wordpress_delete_page(settings, tool_args)
                         elif tool_name == "wordpress_search_pages":
                             result_content = await wordpress_search_pages(settings, tool_args)
+                        elif tool_name == "wordpress_get_tags":
+                            result_content = await wordpress_get_tags(settings, tool_args)
+                        elif tool_name == "wordpress_create_tag":
+                            result_content = await wordpress_create_tag(settings, tool_args)
+                        elif tool_name == "wordpress_update_tag":
+                            result_content = await wordpress_update_tag(settings, tool_args)
+                        elif tool_name == "wordpress_delete_tag":
+                            result_content = await wordpress_delete_tag(settings, tool_args)
                         elif tool_name == "wordpress_create_category":
                             result_content = await wordpress_create_category(settings, tool_args)
                         elif tool_name == "wordpress_get_categories":
@@ -1538,6 +1475,16 @@ async def send_sse_event(
                             result_content = await wordpress_update_comment(settings, tool_args)
                         elif tool_name == "wordpress_delete_comment":
                             result_content = await wordpress_delete_comment(settings, tool_args)
+                        elif tool_name == "wordpress_moderate_comment":
+                            result_content = await wordpress_moderate_comment(settings, tool_args)
+                        elif tool_name == "wordpress_get_users":
+                            result_content = await wordpress_get_users(settings, tool_args)
+                        elif tool_name == "wordpress_create_user":
+                            result_content = await wordpress_create_user(settings, tool_args)
+                        elif tool_name == "wordpress_update_user":
+                            result_content = await wordpress_update_user(settings, tool_args)
+                        elif tool_name == "wordpress_delete_user":
+                            result_content = await wordpress_delete_user(settings, tool_args)
                         else:
                             result_content = f"❌ WordPress инструмент '{tool_name}' пока не реализован"
                     except Exception as e:

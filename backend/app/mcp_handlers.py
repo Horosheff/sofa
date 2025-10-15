@@ -337,68 +337,6 @@ def get_wordpress_tools() -> list:
             }
         },
         {
-            "name": "wordpress_get_pages",
-            "description": "Получить список страниц WordPress",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "per_page": {"type": "number", "description": "Количество страниц"},
-                    "status": {"type": "string", "description": "Статус страниц (publish, draft, any)"}
-                }
-            }
-        },
-        {
-            "name": "wordpress_create_page",
-            "description": "Создать новую страницу в WordPress",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string", "description": "Заголовок страницы"},
-                    "content": {"type": "string", "description": "Содержимое страницы"},
-                    "status": {"type": "string", "description": "Статус (draft, publish)"},
-                    "parent": {"type": "number", "description": "ID родительской страницы (опционально)"}
-                },
-                "required": ["title", "content"]
-            }
-        },
-        {
-            "name": "wordpress_update_page",
-            "description": "Обновить существующую страницу",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "page_id": {"type": "number", "description": "ID страницы"},
-                    "title": {"type": "string", "description": "Новый заголовок"},
-                    "content": {"type": "string", "description": "Новое содержимое"},
-                    "status": {"type": "string", "description": "Новый статус"},
-                    "parent": {"type": "number", "description": "ID родительской страницы"}
-                },
-                "required": ["page_id"]
-            }
-        },
-        {
-            "name": "wordpress_delete_page",
-            "description": "Удалить страницу",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "page_id": {"type": "number", "description": "ID страницы для удаления"}
-                },
-                "required": ["page_id"]
-            }
-        },
-        {
-            "name": "wordpress_search_pages",
-            "description": "Поиск страниц по ключевым словам",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "search": {"type": "string", "description": "Поисковый запрос"}
-                },
-                "required": ["search"]
-            }
-        },
-        {
             "name": "wordpress_create_category",
             "description": "Создать категорию",
             "inputSchema": {
@@ -524,6 +462,114 @@ def get_wordpress_tools() -> list:
                     "comment_id": {"type": "number", "description": "ID комментария"}
                 },
                 "required": ["comment_id"]
+            }
+        },
+        {
+            "name": "wordpress_get_tags",
+            "description": "Получить список тегов WordPress",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "per_page": {"type": "number", "description": "Количество тегов"}
+                }
+            }
+        },
+        {
+            "name": "wordpress_create_tag",
+            "description": "Создать новый тег",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Название тега"},
+                    "slug": {"type": "string", "description": "URL slug"},
+                    "description": {"type": "string", "description": "Описание тега"}
+                },
+                "required": ["name"]
+            }
+        },
+        {
+            "name": "wordpress_update_tag",
+            "description": "Обновить существующий тег",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "tag_id": {"type": "number", "description": "ID тега"},
+                    "name": {"type": "string", "description": "Новое название"},
+                    "description": {"type": "string", "description": "Новое описание"}
+                },
+                "required": ["tag_id"]
+            }
+        },
+        {
+            "name": "wordpress_delete_tag",
+            "description": "Удалить тег",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "tag_id": {"type": "number", "description": "ID тега для удаления"}
+                },
+                "required": ["tag_id"]
+            }
+        },
+        {
+            "name": "wordpress_get_users",
+            "description": "Получить список пользователей WordPress",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "per_page": {"type": "number", "description": "Количество пользователей"},
+                    "role": {"type": "string", "description": "Роль пользователя (administrator, editor, author, etc.)"}
+                }
+            }
+        },
+        {
+            "name": "wordpress_create_user",
+            "description": "Создать нового пользователя",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "username": {"type": "string", "description": "Имя пользователя"},
+                    "email": {"type": "string", "description": "Email адрес"},
+                    "password": {"type": "string", "description": "Пароль"},
+                    "role": {"type": "string", "description": "Роль пользователя"}
+                },
+                "required": ["username", "email", "password"]
+            }
+        },
+        {
+            "name": "wordpress_update_user",
+            "description": "Обновить пользователя",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "number", "description": "ID пользователя"},
+                    "email": {"type": "string", "description": "Новый email"},
+                    "role": {"type": "string", "description": "Новая роль"}
+                },
+                "required": ["user_id"]
+            }
+        },
+        {
+            "name": "wordpress_delete_user",
+            "description": "Удалить пользователя",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "number", "description": "ID пользователя для удаления"}
+                },
+                "required": ["user_id"]
+            }
+        },
+        {
+            "name": "wordpress_moderate_comment",
+            "description": "Модерировать комментарий (изменить статус)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "comment_id": {"type": "number", "description": "ID комментария"},
+                    "status": {"type": "string", "description": "Новый статус (approve, hold, spam, trash)"}
+                },
+                "required": ["comment_id", "status"]
             }
         }
     ]

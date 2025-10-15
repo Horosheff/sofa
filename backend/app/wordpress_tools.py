@@ -360,6 +360,79 @@ async def wordpress_search_pages(settings: UserSettings, tool_args: Dict[str, An
     return result
 
 
+# ==================== TAGS ====================
+
+async def wordpress_get_tags(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Получить список тегов"""
+    tags = await wordpress_api_call(
+        "GET",
+        "/wp-json/wp/v2/tags",
+        settings,
+        params={"per_page": 100}
+    )
+    
+    if not tags:
+        return "Теги не найдены"
+    
+    result = f"Найдено {len(tags)} тегов:\n\n"
+    for tag in tags:
+        result += f"ID: {tag['id']}\nНазвание: {tag['name']}\nКоличество постов: {tag['count']}\n\n"
+    
+    return result
+
+
+async def wordpress_create_tag(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Создать тег"""
+    name = tool_args.get("name")
+    
+    if not name:
+        return "❌ Ошибка: name обязателен"
+    
+    tag = await wordpress_api_call(
+        "POST",
+        "/wp-json/wp/v2/tags",
+        settings,
+        json_data={"name": name}
+    )
+    
+    return f"✅ Тег создан успешно!\nID: {tag['id']}\nНазвание: {tag['name']}"
+
+
+async def wordpress_update_tag(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Обновить тег"""
+    tag_id = tool_args.get("tag_id")
+    name = tool_args.get("name")
+    
+    if not tag_id or not name:
+        return "❌ Ошибка: tag_id и name обязательны"
+    
+    tag = await wordpress_api_call(
+        "POST",
+        f"/wp-json/wp/v2/tags/{tag_id}",
+        settings,
+        json_data={"name": name}
+    )
+    
+    return f"✅ Тег обновлён!\nID: {tag['id']}\nНазвание: {tag['name']}"
+
+
+async def wordpress_delete_tag(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Удалить тег"""
+    tag_id = tool_args.get("tag_id")
+    
+    if not tag_id:
+        return "❌ Ошибка: tag_id обязателен"
+    
+    await wordpress_api_call(
+        "DELETE",
+        f"/wp-json/wp/v2/tags/{tag_id}",
+        settings,
+        params={"force": True}
+    )
+    
+    return f"✅ Тег {tag_id} успешно удалён"
+
+
 # ==================== CATEGORIES ====================
 
 async def wordpress_create_category(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
@@ -609,6 +682,138 @@ async def wordpress_delete_comment(settings: UserSettings, tool_args: Dict[str, 
     return f"✅ Комментарий {comment_id} успешно удалён"
 
 
+async def wordpress_moderate_comment(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Модерировать комментарий (одобрить/отклонить/в спам)"""
+    comment_id = tool_args.get("comment_id")
+    status = tool_args.get("status", "approved")
+    
+    if not comment_id:
+        return "❌ Ошибка: comment_id обязателен"
+    
+    # Статусы: approved, hold (на модерации), spam, trash
+    valid_statuses = ["approved", "hold", "spam", "trash"]
+    if status not in valid_statuses:
+        return f"❌ Ошибка: status должен быть одним из: {', '.join(valid_statuses)}"
+    
+    comment = await wordpress_api_call(
+        "POST",
+        f"/wp-json/wp/v2/comments/{comment_id}",
+        settings,
+        json_data={"status": status}
+    )
+    
+    status_names = {
+        "approved": "одобрен",
+        "hold": "отправлен на модерацию",
+        "spam": "помечен как спам",
+        "trash": "перемещён в корзину"
+    }
+    
+    return f"✅ Комментарий {comment_id} {status_names.get(status, status)}!"
+
+
+# ==================== USERS ====================
+
+async def wordpress_get_users(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Получить список пользователей"""
+    per_page = tool_args.get("per_page", 10)
+    
+    users = await wordpress_api_call(
+        "GET",
+        "/wp-json/wp/v2/users",
+        settings,
+        params={"per_page": per_page}
+    )
+    
+    result = f"Найдено {len(users)} пользователей:\n\n"
+    for user in users:
+        result += f"ID: {user['id']}\nИмя: {user['name']}\nЛогин: {user['slug']}\n\n"
+    
+    return result
+
+
+async def wordpress_create_user(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Создать пользователя"""
+    username = tool_args.get("username")
+    email = tool_args.get("email")
+    password = tool_args.get("password")
+    
+    if not username or not email or not password:
+        return "❌ Ошибка: username, email и password обязательны"
+    
+    user_data = {
+        "username": username,
+        "email": email,
+        "password": password
+    }
+    
+    if "name" in tool_args:
+        user_data["name"] = tool_args["name"]
+    if "roles" in tool_args:
+        user_data["roles"] = tool_args["roles"]
+    
+    user = await wordpress_api_call(
+        "POST",
+        "/wp-json/wp/v2/users",
+        settings,
+        json_data=user_data
+    )
+    
+    return f"✅ Пользователь создан!\nID: {user['id']}\nИмя: {user['name']}\nEmail: {user['email']}"
+
+
+async def wordpress_update_user(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Обновить пользователя"""
+    user_id = tool_args.get("user_id")
+    
+    if not user_id:
+        return "❌ Ошибка: user_id обязателен"
+    
+    update_data = {}
+    if "name" in tool_args:
+        update_data["name"] = tool_args["name"]
+    if "email" in tool_args:
+        update_data["email"] = tool_args["email"]
+    if "password" in tool_args:
+        update_data["password"] = tool_args["password"]
+    if "roles" in tool_args:
+        update_data["roles"] = tool_args["roles"]
+    
+    if not update_data:
+        return "❌ Ошибка: нужно указать хотя бы одно поле для обновления"
+    
+    user = await wordpress_api_call(
+        "POST",
+        f"/wp-json/wp/v2/users/{user_id}",
+        settings,
+        json_data=update_data
+    )
+    
+    return f"✅ Пользователь обновлён!\nID: {user['id']}\nИмя: {user['name']}"
+
+
+async def wordpress_delete_user(settings: UserSettings, tool_args: Dict[str, Any]) -> str:
+    """Удалить пользователя"""
+    user_id = tool_args.get("user_id")
+    reassign = tool_args.get("reassign")
+    
+    if not user_id:
+        return "❌ Ошибка: user_id обязателен"
+    
+    params = {"force": True}
+    if reassign:
+        params["reassign"] = reassign
+    
+    await wordpress_api_call(
+        "DELETE",
+        f"/wp-json/wp/v2/users/{user_id}",
+        settings,
+        params=params
+    )
+    
+    return f"✅ Пользователь {user_id} успешно удалён"
+
+
 # ==================== TOOL ROUTER ====================
 
 async def handle_wordpress_tool(tool_name: str, settings: UserSettings, tool_args: Dict[str, Any]) -> str:
@@ -630,24 +835,39 @@ async def handle_wordpress_tool(tool_name: str, settings: UserSettings, tool_arg
     
     # Маппинг инструментов
     tools_map = {
+        # Posts
         "wordpress_get_posts": wordpress_get_posts,
         "wordpress_create_post": wordpress_create_post,
         "wordpress_update_post": wordpress_update_post,
         "wordpress_delete_post": wordpress_delete_post,
         "wordpress_search_posts": wordpress_search_posts,
         "wordpress_bulk_update_posts": wordpress_bulk_update_posts,
+        # Categories
         "wordpress_create_category": wordpress_create_category,
         "wordpress_get_categories": wordpress_get_categories,
         "wordpress_update_category": wordpress_update_category,
         "wordpress_delete_category": wordpress_delete_category,
+        # Tags
+        "wordpress_get_tags": wordpress_get_tags,
+        "wordpress_create_tag": wordpress_create_tag,
+        "wordpress_update_tag": wordpress_update_tag,
+        "wordpress_delete_tag": wordpress_delete_tag,
+        # Media
         "wordpress_upload_media": wordpress_upload_media,
         "wordpress_upload_image_from_url": wordpress_upload_image_from_url,
         "wordpress_get_media": wordpress_get_media,
         "wordpress_delete_media": wordpress_delete_media,
+        # Comments
         "wordpress_create_comment": wordpress_create_comment,
         "wordpress_get_comments": wordpress_get_comments,
         "wordpress_update_comment": wordpress_update_comment,
         "wordpress_delete_comment": wordpress_delete_comment,
+        "wordpress_moderate_comment": wordpress_moderate_comment,
+        # Users
+        "wordpress_get_users": wordpress_get_users,
+        "wordpress_create_user": wordpress_create_user,
+        "wordpress_update_user": wordpress_update_user,
+        "wordpress_delete_user": wordpress_delete_user,
     }
     
     handler = tools_map.get(tool_name)
