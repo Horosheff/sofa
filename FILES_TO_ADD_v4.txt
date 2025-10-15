@@ -1,0 +1,43 @@
+# Список новых файлов для версии 4.0.0
+
+## Backend - Новые модули (ОБЯЗАТЕЛЬНО)
+backend/app/helpers.py              # Утилиты: validation, sanitization, JSON-RPC
+backend/app/mcp_handlers.py         # SSE Manager, OAuth Store, MCP tools
+backend/app/wordpress_tools.py      # 18 WordPress инструментов
+backend/app/wordstat_tools.py       # 7 Wordstat инструментов
+backend/app/admin_routes.py         # Admin API endpoints
+backend/test_modules.py             # Тестовый скрипт
+backend/TEST_REPORT.md              # Отчёт о тестировании
+
+## Frontend - Админ панель (ОБЯЗАТЕЛЬНО)
+frontend/app/admin/page.tsx         # Страница админ панели
+frontend/app/admin/login/page.tsx   # Страница логина админа
+frontend/app/api/admin/dashboard/route.ts   # API для админ дашборда
+frontend/app/api/login/route.ts     # Исправленный API login
+frontend/components/AdminPanel.tsx          # Главный компонент админки
+frontend/components/AdminDashboard.tsx      # Админ дашборд
+frontend/components/AdminUsersPanel.tsx     # Управление пользователями
+frontend/components/AdminLogsPanel.tsx      # Просмотр логов
+frontend/components/StatsPanel.tsx          # Статистика пользователя
+
+## Изменённые файлы (УЖЕ В РЕПЕ, только обновить)
+backend/app/main.py                 # Сокращён на 443 строки (-19%)
+backend/app/models.py               # Добавлены AdminLog, LoginAttempt
+backend/app/auth.py                 # Добавлен get_current_admin_user
+frontend/app/globals.css            # Удалён matrix effect
+frontend/app/page.tsx               # Удалён matrix effect
+frontend/components/Dashboard.tsx   # Удалена кнопка админа
+frontend/components/SettingsPanel.tsx # WordPress Application Passwords инструкция
+frontend/package.json               # Добавлен framer-motion
+
+## Документация (ОПЦИОНАЛЬНО, но рекомендуется)
+RELEASE_NOTES_v4.md                 # Release notes v4.0.0
+DEPLOY_v4.md                        # Deployment guide
+UPDATE_TO_V4_PATCH.sh               # Этот патч скрипт
+FILES_TO_ADD_v4.txt                 # Этот файл
+
+## НЕ ДОБАВЛЯТЬ (локальные файлы)
+backend/package-lock.json           # Не нужен на сервере
+admin_dashboard_screenshot.png      # Screenshot, не для деплоя
+admin_panel_screenshot.png          # Screenshot, не для деплоя
+

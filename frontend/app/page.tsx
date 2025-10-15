@@ -62,32 +62,6 @@ export default function Home() {
       <div className="lava-blob lava-blob-3"></div>
       <div className="lava-blob lava-blob-4"></div>
       <div className="lava-blob lava-blob-5"></div>
-      
-      {/* Эффект матрицы */}
-      <div className="matrix-bg">
-        {Array.from({ length: 20 }, (_, i) => (
-          <div
-            key={i}
-            className="matrix-column"
-            style={{
-              left: `${i * 5}%`,
-              animationDelay: `${i * 0.5}s`,
-            }}
-          >
-            {Array.from({ length: 50 }, (_, j) => (
-              <span
-                key={j}
-                className="matrix-char"
-                style={{
-                  '--delay': j,
-                } as React.CSSProperties}
-              >
-                {String.fromCharCode(0x30A0 + Math.random() * 96)}
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
 
       <div className="min-h-screen relative z-10">
         {/* Основной контент */}

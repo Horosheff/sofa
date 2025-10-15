@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import ToolsPanel from '@/components/ToolsPanel'
 import SettingsPanel from '@/components/SettingsPanel'
+import StatsPanel from '@/components/StatsPanel'
 import { useAuthStore } from '@/store/authStore'
 
 export default function Dashboard() {
   const { user, logout } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<'tools' | 'settings'>('tools')
+  const [activeTab, setActiveTab] = useState<'tools' | 'settings' | 'stats'>('tools')
 
   return (
     <div className="min-h-screen text-foreground">
@@ -87,6 +88,19 @@ export default function Dashboard() {
                 </span>
               </button>
               <button
+                onClick={() => setActiveTab('stats')}
+                className={`glass-tab px-8 py-4 font-semibold transition-all duration-300 ${
+                  activeTab === 'stats' 
+                    ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-indigo-400/50 shadow-lg' 
+                    : 'hover:bg-white/5'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="text-lg">📊</span>
+                  <span>Статистика</span>
+                </span>
+              </button>
+              <button
                 onClick={() => setActiveTab('settings')}
                 className={`glass-tab px-8 py-4 font-semibold transition-all duration-300 ${
                   activeTab === 'settings' 
@@ -105,6 +119,7 @@ export default function Dashboard() {
 
         {/* Tab Content */}
         {activeTab === 'tools' && <ToolsPanel />}
+        {activeTab === 'stats' && <StatsPanel />}
         {activeTab === 'settings' && <SettingsPanel />}
       </main>
     </div>

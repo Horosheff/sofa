@@ -16,6 +16,7 @@ from typing import Optional, Dict
 from .database import get_db
 from .auth import (
     get_current_user,
+    get_current_admin_user,
     create_access_token,
     get_password_hash,
     verify_password,
@@ -24,14 +25,35 @@ from .auth import (
     get_user_from_token,
 )
 from sse_starlette import EventSourceResponse
-from .models import User, UserSettings
+from .models import User, UserSettings, ActivityLog, AdminLog, LoginAttempt
 from .schemas import UserCreate, UserLogin, MCPRequest, MCPResponse
+from .admin_routes import router as admin_router
+from .wordpress_tools import handle_wordpress_tool
+from .wordstat_tools import handle_wordstat_tool
+from .helpers import (
+    create_jsonrpc_response,
+    create_jsonrpc_error,
+    create_mcp_tool_result,
+    JSONRPCErrorCodes,
+    generate_connector_id as helper_generate_connector_id,
+    sanitize_url,
+    is_valid_url
+)
+from .mcp_handlers import (
+    SseManager,
+    OAuthStore,
+    get_all_mcp_tools,
+    get_mcp_server_info
+)
 
 app = FastAPI(
     title="WordPress MCP Platform API",
     description="API для управления WordPress через MCP сервер",
     version="1.0.0"
 )
+
+# Подключаем админ роуты
+app.include_router(admin_router)
 
 # CORS настройки - безопасные настройки для продакшена
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
@@ -50,99 +72,11 @@ security = HTTPBearer()
 # MCP Server URL (замените на ваш)
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8080")
 
-# Менеджер SSE потоков
-class SseManager:
-    def __init__(self):
-        self._streams: Dict[str, asyncio.Queue] = {}
-
-    async def connect(self, connector_id: str) -> asyncio.Queue:
-        queue: asyncio.Queue = asyncio.Queue()
-        self._streams[connector_id] = queue
-        return queue
-
-    def disconnect(self, connector_id: str) -> None:
-        self._streams.pop(connector_id, None)
-
-    async def send(self, connector_id: str, data: Dict) -> None:
-        queue = self._streams.get(connector_id)
-        if queue:
-            await queue.put(json.dumps(data))
-
+# Глобальные экземпляры (импортированы из mcp_handlers)
 sse_manager = SseManager()
+oauth_store = OAuthStore()
 
 logger = logging.getLogger("uvicorn.error")
-
-class OAuthStore:
-    def __init__(self):
-        self.clients: Dict[str, Dict[str, str]] = {}
-        self.auth_codes: Dict[str, Dict[str, str]] = {}
-        self.tokens: Dict[str, Dict[str, str]] = {}
-
-    def create_client(self, name: str) -> Dict[str, str]:
-        client_id = secrets.token_urlsafe(16)
-        client_secret = secrets.token_urlsafe(32)
-        self.clients[client_id] = {
-            "name": name,
-            "client_secret": client_secret,
-            "connector_id": "",
-        }
-        return {"client_id": client_id, "client_secret": client_secret}
-
-    def issue_auth_code(self, client_id: str, connector_id: str, code_challenge: Optional[str] = None) -> str:
-        code = secrets.token_urlsafe(16)
-        self.auth_codes[code] = {
-            "client_id": client_id,
-            "connector_id": connector_id,
-            "expires_at": (datetime.utcnow() + timedelta(minutes=5)).isoformat(),
-            "code_challenge": code_challenge,
-        }
-        return code
-
-    def exchange_code(self, code: str, client_id: str, code_verifier: Optional[str] = None) -> Optional[str]:
-        data = self.auth_codes.get(code)
-        if not data or data["client_id"] != client_id:
-            return None
-        if datetime.utcnow() > datetime.fromisoformat(data["expires_at"]):
-            self.auth_codes.pop(code, None)
-            return None
-        
-        # Verify PKCE if code_challenge was provided
-        if data.get("code_challenge"):
-            if not code_verifier:
-                logger.warning("PKCE: code_verifier required but not provided")
-                return None
-            
-            import hashlib
-            import base64
-            
-            # Compute challenge from verifier
-            computed_challenge = base64.urlsafe_b64encode(
-                hashlib.sha256(code_verifier.encode()).digest()
-            ).decode().rstrip("=")
-            
-            if computed_challenge != data["code_challenge"]:
-                logger.warning("PKCE: code_challenge mismatch")
-                return None
-        
-        token = secrets.token_urlsafe(32)
-        self.tokens[token] = {
-            "connector_id": data["connector_id"],
-            "expires_at": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
-        }
-        self.auth_codes.pop(code, None)
-        return token
-
-    def get_connector_by_token(self, token: str) -> Optional[str]:
-        data = self.tokens.get(token)
-        if not data:
-            return None
-        if datetime.utcnow() > datetime.fromisoformat(data["expires_at"]):
-            self.tokens.pop(token, None)
-            return None
-        return data["connector_id"]
-
-
-oauth_store = OAuthStore()
 
 # Функции валидации
 def validate_email(email: str) -> bool:
@@ -320,6 +254,16 @@ async def get_user_settings(
         db.commit()
         db.refresh(settings)
     
+    # Определяем наличие учётных данных
+    has_wordpress = bool(
+        settings.wordpress_url and 
+        settings.wordpress_username and 
+        settings.wordpress_password
+    )
+    has_wordstat = bool(
+        settings.wordstat_client_id and settings.wordstat_client_secret
+    )
+    
     return {
         "wordpress_url": settings.wordpress_url,
         "wordpress_username": settings.wordpress_username,
@@ -330,7 +274,9 @@ async def get_user_settings(
         "mcp_sse_url": settings.mcp_sse_url,
         "mcp_connector_id": settings.mcp_connector_id,
         "timezone": settings.timezone,
-        "language": settings.language
+        "language": settings.language,
+        "has_wordpress_credentials": has_wordpress,
+        "has_wordstat_credentials": has_wordstat
     }
 
 @app.put("/user/settings")
@@ -361,6 +307,84 @@ async def update_user_settings(
     
     db.commit()
     return {"message": "Настройки обновлены"}
+
+@app.get("/user/stats")
+async def get_user_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Получить статистику пользователя"""
+    from sqlalchemy import func
+    
+    # Общая статистика
+    total_actions = db.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.user_id == current_user.id
+    ).scalar() or 0
+    
+    # Статистика по типам действий
+    actions_by_type = db.query(
+        ActivityLog.action_type,
+        func.count(ActivityLog.id).label('count')
+    ).filter(
+        ActivityLog.user_id == current_user.id
+    ).group_by(ActivityLog.action_type).all()
+    
+    actions_stats = {action_type: count for action_type, count in actions_by_type}
+    
+    # Последние действия
+    recent_activities = db.query(ActivityLog).filter(
+        ActivityLog.user_id == current_user.id
+    ).order_by(ActivityLog.created_at.desc()).limit(20).all()
+    
+    recent_activities_list = [
+        {
+            "id": activity.id,
+            "action_type": activity.action_type,
+            "action_name": activity.action_name,
+            "status": activity.status,
+            "created_at": activity.created_at.isoformat() if activity.created_at else None,
+            "details": activity.details
+        }
+        for activity in recent_activities
+    ]
+    
+    # Статистика подключений
+    settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    has_wordpress = bool(settings and settings.wordpress_url and settings.wordpress_username)
+    has_wordstat = bool(settings and settings.wordstat_client_id and settings.wordstat_client_secret)
+    
+    # Активность за последние 7 дней
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    daily_activity = db.query(
+        func.date(ActivityLog.created_at).label('date'),
+        func.count(ActivityLog.id).label('count')
+    ).filter(
+        ActivityLog.user_id == current_user.id,
+        ActivityLog.created_at >= seven_days_ago
+    ).group_by(func.date(ActivityLog.created_at)).all()
+    
+    daily_activity_list = [
+        {"date": str(date), "count": count}
+        for date, count in daily_activity
+    ]
+    
+    return {
+        "total_actions": total_actions,
+        "actions_by_type": actions_stats,
+        "recent_activities": recent_activities_list,
+        "connections": {
+            "wordpress": has_wordpress,
+            "wordstat": has_wordstat,
+            "mcp": True
+        },
+        "daily_activity": daily_activity_list,
+        "user_info": {
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            "days_since_registration": (datetime.utcnow() - current_user.created_at).days if current_user.created_at else 0
+        }
+    }
 
 @app.post("/mcp/execute")
 async def execute_mcp_command(
@@ -618,445 +642,18 @@ async def send_sse_event_oauth(
         try:
             result_content = None
             
-            if tool_name == "wordpress_get_posts":
-                # Вызываем WordPress REST API
-                wp_url = settings.wordpress_url.rstrip("/")
-                wp_user = settings.wordpress_username
-                wp_pass = settings.wordpress_password
-                
-                per_page = tool_args.get("per_page", 10)
-                status = tool_args.get("status", "any")
-                
-                async with httpx.AsyncClient() as client:
-                    auth = (wp_user, wp_pass) if wp_user and wp_pass else None
-                    resp = await client.get(
-                        f"{wp_url}/wp-json/wp/v2/posts",
-                        params={"per_page": per_page, "status": status},
-                        auth=auth,
-                        timeout=30.0
-                    )
-                    resp.raise_for_status()
-                    posts = resp.json()
-                    
-                    result_content = f"Найдено {len(posts)} постов:\n\n"
-                    for post in posts:
-                        result_content += f"ID: {post['id']}\n"
-                        result_content += f"Название: {post['title']['rendered']}\n"
-                        result_content += f"Статус: {post['status']}\n"
-                        result_content += f"Дата: {post['date']}\n\n"
-            
-            elif tool_name == "wordpress_create_post":
-                wp_url = settings.wordpress_url.rstrip("/")
-                wp_user = settings.wordpress_username
-                wp_pass = settings.wordpress_password
-                
-                async with httpx.AsyncClient() as client:
-                    resp = await client.post(
-                        f"{wp_url}/wp-json/wp/v2/posts",
-                        json={
-                            "title": tool_args.get("title"),
-                            "content": tool_args.get("content"),
-                            "status": tool_args.get("status", "draft")
-                        },
-                        auth=(wp_user, wp_pass),
-                        timeout=30.0
-                    )
-                    resp.raise_for_status()
-                    post = resp.json()
-                    result_content = f"Пост создан успешно!\nID: {post['id']}\nНазвание: {post['title']['rendered']}\nСтатус: {post['status']}"
+            # === WORDPRESS TOOLS ===
+            if tool_name.startswith("wordpress_"):
+                result_content = await handle_wordpress_tool(tool_name, settings, tool_args)
             
             # === WORDSTAT TOOLS ===
+            elif tool_name.startswith("wordstat_"):
+                result_content = await handle_wordstat_tool(tool_name, settings, tool_args, db)
             
-            elif tool_name == "wordstat_get_user_info":
-                # Получаем информацию о пользователе
-                if not settings.wordstat_access_token and not settings.wordstat_client_id:
-                    result_content = """❌ Wordstat не настроен!
-
-Настройки в базе данных:
-- Client ID: отсутствует
-- Access Token: отсутствует
-
-📋 Что нужно сделать:
-1. Зайдите на dashboard по адресу https://mcp-kv.ru
-2. В разделе "Настройки" заполните поля Wordstat:
-   - Client ID
-   - Client Secret (Application Password)
-   - Redirect URI (можно использовать https://oauth.yandex.ru/verification_code)
-
-3. Затем используйте wordstat_auto_setup для получения инструкций по OAuth"""
-                
-                elif not settings.wordstat_access_token and settings.wordstat_client_id:
-                    result_content = f"""⚠️ Wordstat настроен частично!
-
-Найдено в базе:
-- Client ID: {settings.wordstat_client_id}
-- Client Secret: {settings.wordstat_client_secret or '✗ отсутствует'}
-- Access Token: отсутствует
-
-🔐 Для получения Access Token:
-1. Откройте в браузере:
-   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id}
-
-2. Разрешите доступ к приложению
-
-3. Скопируйте access_token из URL
-
-4. Используйте wordstat_set_token с полученным токеном"""
-                
-                else:
-                    # Есть токен - проверяем через API v1 /userInfo
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            resp = await client.post(
-                                "https://api.wordstat.yandex.net/v1/userInfo",
-                                headers={
-                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
-                                    "Content-Type": "application/json;charset=utf-8"
-                                },
-                                timeout=30.0
-                            )
-                            
-                            logger.info(f"Wordstat API /v1/userInfo status: {resp.status_code}")
-                            logger.info(f"Wordstat API /v1/userInfo response: {resp.text[:500]}")
-                            
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                
-                                if "userInfo" in data:
-                                    user_info = data["userInfo"]
-                                    result_content = f"""✅ Подключение к Wordstat успешно!
-
-📊 Информация о пользователе:
-- Логин: {user_info.get('login', 'N/A')}
-- Лимит запросов в секунду: {user_info.get('limitPerSecond', 'N/A')}
-- Дневной лимит: {user_info.get('dailyLimit', 'N/A')}
-- Осталось запросов сегодня: {user_info.get('dailyLimitRemaining', 'N/A')}
-
-🎉 Можете использовать все инструменты Wordstat!
-• wordstat_get_top_requests - топ запросов
-• wordstat_get_regions_tree - дерево регионов
-• wordstat_get_dynamics - динамика запросов
-• wordstat_get_regions - распределение по регионам"""
-                                
-                                else:
-                                    result_content = f"""⚠️ Необычный ответ от API:
-{json.dumps(data, indent=2, ensure_ascii=False)}"""
-                            
-                            elif resp.status_code == 401:
-                                result_content = f"""❌ Токен недействителен (401 Unauthorized)
-
-🔧 Причины:
-1. Токен устарел или неправильный
-2. Токен был получен для другого приложения
-3. У аккаунта нет доступа к Wordstat API
-
-📋 Что делать:
-1. Получите новый токен через: 
-   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id if settings.wordstat_client_id else 'c654b948515a4a07a4c89648a0831d40'}
-
-2. Убедитесь, что:
-   - Авторизуетесь под правильным аккаунтом Яндекса
-   - У аккаунта есть доступ к Wordstat
-   - Client ID правильный"""
-                            
-                            else:
-                                result_content = f"""❌ HTTP ошибка {resp.status_code}:
-{resp.text}
-
-Попробуйте получить новый токен через wordstat_auto_setup."""
-                    
-                    except Exception as e:
-                        result_content = f"""❌ Ошибка при подключении к Wordstat API:
-{str(e)}
-
-Проверьте интернет-соединение или попробуйте позже."""
             
-            elif tool_name == "wordstat_get_regions_tree":
-                # Получаем дерево регионов через API v1
-                if not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
-                else:
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            resp = await client.post(
-                                "https://api.wordstat.yandex.net/v1/getRegionsTree",
-                                headers={
-                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
-                                    "Content-Type": "application/json;charset=utf-8"
-                                },
-                                json={},
-                                timeout=30.0
-                            )
-                            
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}")
-                                
-                                # API возвращает список напрямую (не объект с ключом 'regions')
-                                if isinstance(data, list):
-                                    regions_list = data
-                                elif isinstance(data, dict) and 'regions' in data:
-                                    regions_list = data['regions']
-                                else:
-                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}"
-                                    regions_list = None
-                                
-                                if regions_list is not None:
-                                    result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
-                                    
-                                    def format_regions(regions, level=0):
-                                        text = ""
-                                        if not isinstance(regions, list):
-                                            return "⚠️ Ожидался список регионов\n"
-                                        for region in regions[:20] if level == 0 else regions:  # Ограничим только корневой уровень
-                                            if not isinstance(region, dict):
-                                                continue
-                                            indent = "  " * level
-                                            # API использует 'value' и 'label' вместо 'id' и 'name'
-                                            region_id = region.get('value') or region.get('id', 'N/A')
-                                            region_name = region.get('label') or region.get('name', 'N/A')
-                                            text += f"{indent}• {region_name} (ID: {region_id})\n"
-                                            # children может быть None или списком
-                                            children = region.get('children')
-                                            if children and isinstance(children, list):
-                                                text += format_regions(children, level + 1)
-                                        return text
-                                    
-                                    result_content += format_regions(regions_list)
-                                    result_content += "\n💡 Используйте ID регионов для других запросов"
-                            else:
-                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
-                    except Exception as e:
-                        logger.error(f"Wordstat /v1/getRegionsTree exception: {str(e)}", exc_info=True)
-                        result_content = f"❌ Ошибка: {str(e)}"
-            
-            elif tool_name == "wordstat_get_top_requests":
-                # Получаем топ запросов через API v1
-                phrase = tool_args.get("phrase")
-                num_phrases = tool_args.get("numPhrases", 50)
-                regions = tool_args.get("regions", [225])  # По умолчанию Россия
-                devices = tool_args.get("devices", ["all"])
-                
-                if not phrase:
-                    result_content = "❌ Ошибка: не указана фраза для поиска (параметр 'phrase')"
-                elif not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен."
-                else:
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            resp = await client.post(
-                                "https://api.wordstat.yandex.net/v1/topRequests",
-                                headers={
-                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
-                                    "Content-Type": "application/json;charset=utf-8"
-                                },
-                                json={
-                                    "phrase": phrase,
-                                    "numPhrases": num_phrases,
-                                    "regions": regions if isinstance(regions, list) else [regions],
-                                    "devices": devices
-                                },
-                                timeout=30.0
-                            )
-                            
-                            logger.info(f"Wordstat topRequests status: {resp.status_code}")
-                            logger.info(f"Wordstat topRequests response: {resp.text[:500]}")
-                            
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                
-                                result_content = f"""✅ Топ запросов для '{data.get('requestPhrase', phrase)}'
-                                
-📊 Общее число запросов: {data.get('totalCount', 0)}
-
-🔝 Самые популярные запросы:"""
-                                
-                                for idx, item in enumerate(data.get('topRequests', [])[:10], 1):
-                                    result_content += f"\n{idx}. {item['phrase']}: {item['count']} показов"
-                                
-                                if data.get('associations'):
-                                    result_content += "\n\n🔗 Похожие запросы:"
-                                    for idx, item in enumerate(data.get('associations', [])[:5], 1):
-                                        result_content += f"\n{idx}. {item['phrase']}: {item['count']} показов"
-                            else:
-                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
-                    except Exception as e:
-                        result_content = f"❌ Ошибка: {str(e)}"
-            
-            elif tool_name == "wordstat_get_dynamics":
-                # Получаем динамику запросов через API v1
-                phrase = tool_args.get("phrase")
-                period = tool_args.get("period", "weekly")  # monthly, weekly, daily
-                from_date = tool_args.get("fromDate") or tool_args.get("from_date")
-                to_date = tool_args.get("toDate") or tool_args.get("to_date")
-                regions = tool_args.get("regions", [225])
-                devices = tool_args.get("devices", ["all"])
-                
-                if not phrase:
-                    result_content = "❌ Ошибка: не указана фраза (параметр 'phrase')"
-                elif not from_date:
-                    result_content = "❌ Ошибка: не указана дата начала (параметр 'fromDate' в формате YYYY-MM-DD)"
-                elif not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен."
-                else:
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            payload = {
-                                "phrase": phrase,
-                                "period": period,
-                                "fromDate": from_date,
-                                "regions": regions if isinstance(regions, list) else [regions],
-                                "devices": devices
-                            }
-                            if to_date:
-                                payload["toDate"] = to_date
-                            
-                            resp = await client.post(
-                                "https://api.wordstat.yandex.net/v1/dynamics",
-                                headers={
-                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
-                                    "Content-Type": "application/json;charset=utf-8"
-                                },
-                                json=payload,
-                                timeout=30.0
-                            )
-                            
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                result_content = f"✅ Динамика запроса '{phrase}' (период: {period})\n\n"
-                                
-                                for item in data.get('dynamics', []):
-                                    result_content += f"📅 {item['date']}: {item['count']} запросов (доля: {item.get('share', 0):.4f}%)\n"
-                            else:
-                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
-                    except Exception as e:
-                        result_content = f"❌ Ошибка: {str(e)}"
-            
-            elif tool_name == "wordstat_get_regions":
-                # Получаем статистику по регионам через API v1
-                phrase = tool_args.get("phrase")
-                region_type = tool_args.get("regionType", "all")  # cities, regions, all
-                devices = tool_args.get("devices", ["all"])
-                
-                if not phrase:
-                    result_content = "❌ Ошибка: не указана фраза (параметр 'phrase')"
-                elif not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен."
-                else:
-                    try:
-                        async with httpx.AsyncClient() as client:
-                            resp = await client.post(
-                                "https://api.wordstat.yandex.net/v1/regions",
-                                headers={
-                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
-                                    "Content-Type": "application/json;charset=utf-8"
-                                },
-                                json={
-                                    "phrase": phrase,
-                                    "regionType": region_type,
-                                    "devices": devices
-                                },
-                                timeout=30.0
-                            )
-                            
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                logger.info(f"Wordstat /v1/regions response type: {type(data)}, data: {str(data)[:500]}")
-                                
-                                # Проверяем, что data - это словарь с ключом 'regions'
-                                if isinstance(data, dict) and 'regions' in data:
-                                    regions_list = data['regions']
-                                    result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
-                                    
-                                    for item in regions_list[:20]:
-                                        result_content += f"""📍 Регион ID {item.get('regionId', 'N/A')}:
-   Запросов: {item.get('count', 0)}
-   Доля: {item.get('share', 0):.4f}%
-   Индекс интереса: {item.get('affinityIndex', 0):.2f}%\n"""
-                                else:
-                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:200]}"
-                            else:
-                                result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
-                    except Exception as e:
-                        logger.error(f"Wordstat /v1/regions exception: {str(e)}", exc_info=True)
-                        result_content = f"❌ Ошибка: {str(e)}"
-            
-            elif tool_name == "wordstat_auto_setup":
-                # Автоматическая настройка с диагностикой
-                status_lines = ["🔧 Диагностика Wordstat API\n"]
-                status_lines.append("=" * 50)
-                
-                # Проверяем, что есть в базе
-                if settings.wordstat_client_id:
-                    status_lines.append(f"✅ Client ID: {settings.wordstat_client_id}")
-                else:
-                    status_lines.append("❌ Client ID: не установлен")
-                
-                if settings.wordstat_client_secret:
-                    status_lines.append("✅ Client Secret: установлен")
-                else:
-                    status_lines.append("❌ Client Secret: не установлен")
-                
-                if settings.wordstat_access_token:
-                    status_lines.append("✅ Access Token: установлен")
-                else:
-                    status_lines.append("❌ Access Token: не установлен")
-                
-                status_lines.append("\n" + "=" * 50)
-                
-                # Даем инструкции в зависимости от ситуации
-                if not settings.wordstat_client_id:
-                    status_lines.append("""
-📋 ШАГ 1: Регистрация приложения Yandex Direct
-
-1. Откройте: https://oauth.yandex.ru/client/new
-2. Заполните форму:
-   - Название: "MCP WordPress"
-   - Права доступа: выберите "API Яндекс.Директ"
-   - Redirect URI: https://oauth.yandex.ru/verification_code
-3. Нажмите "Создать приложение"
-4. Скопируйте Client ID и пароль приложения
-5. Зайдите на https://mcp-kv.ru и сохраните их в настройках
-
-📚 Документация: https://yandex.ru/dev/direct/doc/start/about.html""")
-                
-                elif not settings.wordstat_access_token:
-                    status_lines.append(f"""
-📋 ШАГ 2: Получение Access Token
-
-У вас уже есть Client ID! Теперь получите токен:
-
-1. Откройте эту ссылку в браузере:
-   https://oauth.yandex.ru/authorize?response_type=token&client_id={settings.wordstat_client_id}
-
-2. Разрешите доступ к API Яндекс.Директ
-
-3. После разрешения вы будете перенаправлены на URL вида:
-   https://oauth.yandex.ru/verification_code#access_token=ВАШТОКЕН...
-
-4. Скопируйте значение access_token из адресной строки
-
-5. Используйте инструмент wordstat_set_token с этим токеном
-
-💡 Токен действителен 1 год.""")
-                
-                else:
-                    status_lines.append("""
-✅ Wordstat полностью настроен!
-
-Используйте инструменты:
-• wordstat_get_top_requests - топ запросов по ключевому слову
-• wordstat_get_regions_tree - список регионов
-• wordstat_get_dynamics - динамика запросов
-• wordstat_get_regions - статистика по регионам
-
-Проверьте подключение: wordstat_get_user_info""")
-                
-                result_content = "\n".join(status_lines)
-            
+            # === UNKNOWN TOOL ===
             else:
-                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post\n• Wordstat: set_token, get_user_info, get_regions_tree, get_top_requests, get_dynamics, get_regions, auto_setup"
-            
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: 18 инструментов (posts, categories, media, comments)\n• Wordstat: 7 инструментов (user_info, regions_tree, top_requests, dynamics, regions, set_token, auto_setup)"
             response = {
                 "jsonrpc": "2.0",
                 "id": request_id,

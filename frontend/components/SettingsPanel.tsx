@@ -292,6 +292,29 @@ export default function SettingsPanel() {
           <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
             📝 WordPress настройки
           </h3>
+          
+          {/* Инструкция по Application Passwords */}
+          <div className="glass-form p-4 mb-6 border-l-4 border-blue-400/50">
+            <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center">
+              💡 Как получить Application Password (пароль приложения):
+            </h4>
+            <ol className="text-sm text-foreground/70 space-y-2 list-decimal list-inside">
+              <li>Войдите в админку WordPress: <code className="text-xs bg-white/10 px-2 py-1 rounded">https://ваш-сайт.com/wp-admin</code></li>
+              <li>Перейдите в <strong>Пользователи → Профиль</strong></li>
+              <li>Прокрутите вниз до секции <strong>"Application Passwords"</strong></li>
+              <li>Введите название приложения (например: "MCP Platform")</li>
+              <li>Нажмите <strong>"Add New Application Password"</strong></li>
+              <li>Скопируйте сгенерированный пароль (он показывается только один раз!)</li>
+              <li>Вставьте пароль в поле ниже</li>
+            </ol>
+            <p className="text-xs text-foreground/50 mt-3">
+              ⚠️ <strong>Важно:</strong> Application Password безопаснее обычного пароля и может быть отозван в любой момент без смены основного пароля.
+            </p>
+            <p className="text-xs text-foreground/50 mt-2">
+              📌 <strong>Требования:</strong> WordPress 5.6+ (для более старых версий используйте плагин "Application Passwords")
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-foreground/80 mb-2">
@@ -303,6 +326,7 @@ export default function SettingsPanel() {
                 className="modern-input w-full"
                 placeholder="https://example.com"
               />
+              <p className="text-xs text-foreground/50 mt-1">Без завершающего слэша</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-white/80 mb-2">
@@ -314,16 +338,20 @@ export default function SettingsPanel() {
                 className="modern-input w-full"
                 placeholder="username"
               />
+              <p className="text-xs text-foreground/50 mt-1">Ваш логин в WordPress</p>
             </div>
             <PasswordField
-              label="Пароль приложения"
+              label="Application Password (пароль приложения)"
               name="wordpress_password"
               value={watchValues.wordpress_password}
               onChange={(value) => setValue('wordpress_password', value, { shouldDirty: true })}
               onBlur={() => setValue('wordpress_password', watchValues.wordpress_password, { shouldDirty: true })}
-              placeholder="••••••••"
+              placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
               className="md:col-span-2"
             />
+            <p className="text-xs text-foreground/50 md:col-span-2 -mt-4">
+              Формат: 24 символа через пробелы (автоматически генерируется WordPress)
+            </p>
           </div>
         </div>
 
