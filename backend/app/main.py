@@ -790,23 +790,34 @@ async def send_sse_event_oauth(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                # Формируем читаемый список регионов
-                                result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
+                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
                                 
-                                def format_regions(regions, level=0):
-                                    text = ""
-                                    for region in regions[:20]:  # Ограничим для читаемости
-                                        indent = "  " * level
-                                        text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
-                                        if region.get('children'):
-                                            text += format_regions(region['children'], level + 1)
-                                    return text
-                                
-                                result_content += format_regions(data.get('regions', []))
-                                result_content += "\n💡 Используйте ID регионов для других запросов"
+                                # Проверяем, что data - это словарь с ключом 'regions'
+                                if isinstance(data, dict) and 'regions' in data:
+                                    regions_list = data['regions']
+                                    result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
+                                    
+                                    def format_regions(regions, level=0):
+                                        text = ""
+                                        if not isinstance(regions, list):
+                                            return "⚠️ Ожидался список регионов\n"
+                                        for region in regions[:20]:  # Ограничим для читаемости
+                                            if not isinstance(region, dict):
+                                                continue
+                                            indent = "  " * level
+                                            text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
+                                            if region.get('children') and isinstance(region['children'], list):
+                                                text += format_regions(region['children'], level + 1)
+                                        return text
+                                    
+                                    result_content += format_regions(regions_list)
+                                    result_content += "\n💡 Используйте ID регионов для других запросов"
+                                else:
+                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:300]}"
                             else:
                                 result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
                     except Exception as e:
+                        logger.error(f"Wordstat /v1/getRegionsTree exception: {str(e)}", exc_info=True)
                         result_content = f"❌ Ошибка: {str(e)}"
             
             elif tool_name == "wordstat_get_top_requests":
@@ -1454,24 +1465,35 @@ async def send_sse_event(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                # Формируем читаемый список регионов
-                                result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
+                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
                                 
-                                def format_regions(regions, level=0):
-                                    text = ""
-                                    for region in regions[:20]:  # Ограничим для читаемости
-                                        indent = "  " * level
-                                        text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
-                                        if region.get('children'):
-                                            text += format_regions(region['children'], level + 1)
-                                    return text
-                                
-                                result_content += format_regions(data.get('regions', []))
-                                result_content += "\n💡 Используйте ID регионов для других запросов"
+                                # Проверяем, что data - это словарь с ключом 'regions'
+                                if isinstance(data, dict) and 'regions' in data:
+                                    regions_list = data['regions']
+                                    result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
+                                    
+                                    def format_regions(regions, level=0):
+                                        text = ""
+                                        if not isinstance(regions, list):
+                                            return "⚠️ Ожидался список регионов\n"
+                                        for region in regions[:20]:  # Ограничим для читаемости
+                                            if not isinstance(region, dict):
+                                                continue
+                                            indent = "  " * level
+                                            text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
+                                            if region.get('children') and isinstance(region['children'], list):
+                                                text += format_regions(region['children'], level + 1)
+                                        return text
+                                    
+                                    result_content += format_regions(regions_list)
+                                    result_content += "\n💡 Используйте ID регионов для других запросов"
+                                else:
+                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:300]}"
                             else:
                                 result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
                                 
                     except Exception as e:
+                        logger.error(f"Wordstat /v1/getRegionsTree exception: {str(e)}", exc_info=True)
                         result_content = f"❌ Ошибка: {str(e)}"
                 
                 response = {
