@@ -1536,19 +1536,8 @@ async def send_sse_event(
 @app.get("/mcp/tools")
 async def get_available_tools():
     """Получить список доступных MCP инструментов"""
-    return {
-        "wordpress": [
-            "create_post", "update_post", "get_posts", "delete_post", "search_posts",
-            "bulk_update_posts", "create_category", "get_categories", "update_category",
-            "delete_category", "upload_media", "upload_image_from_url", "get_media",
-            "delete_media", "create_comment", "get_comments", "update_comment", "delete_comment"
-        ],
-        "wordstat": [
-            "set_wordstat_token", "get_wordstat_regions_tree", "get_wordstat_top_requests",
-            "get_wordstat_dynamics", "get_wordstat_regions", "get_wordstat_user_info",
-            "auto_setup_wordstat"
-        ],
-    }
+    # Возвращаем актуальный список инструментов из mcp_handlers
+    return get_all_mcp_tools()
 
 @app.get("/.well-known/openid-configuration")
 async def openid_config():
