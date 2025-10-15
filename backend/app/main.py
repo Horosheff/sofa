@@ -1342,34 +1342,43 @@ async def send_sse_event(
 4. Используйте wordstat_set_token с полученным токеном"""
                 
                 else:
-                    # Есть токен - проверяем через API v1 /userInfo
+                    # Есть токен - проверяем через Wordstat API /v1/userInfo
                     try:
                         async with httpx.AsyncClient() as client:
+                            # Метод /v1/userInfo НЕ требует параметров в теле
                             resp = await client.post(
                                 "https://api.wordstat.yandex.net/v1/userInfo",
                                 headers={
                                     "Authorization": f"Bearer {settings.wordstat_access_token}",
                                     "Content-Type": "application/json;charset=utf-8"
                                 },
+                                json={},  # Пустое тело
                                 timeout=30.0
                             )
                             
                             logger.info(f"Wordstat API /v1/userInfo status: {resp.status_code}")
+                            logger.info(f"Wordstat API /v1/userInfo response: {resp.text}")
                             
                             if resp.status_code == 200:
                                 data = resp.json()
+                                user_info = data.get('userInfo', {})
                                 result_content = f"""✅ Wordstat API работает!
 
 👤 Информация о пользователе:
-- Логин: {data.get('login', 'не указан')}
-- ID: {data.get('user_id', 'не указан')}
-- Статус: {data.get('status', 'не указан')}
+- Логин: {user_info.get('login', 'не указан')}
+- Лимит запросов/сек: {user_info.get('limitPerSecond', 'не указано')}
+- Дневной лимит: {user_info.get('dailyLimit', 'не указано')}
+- Осталось запросов сегодня: {user_info.get('dailyLimitRemaining', 'не указано')}
 
 🔧 Настройки в системе:
 - Client ID: {settings.wordstat_client_id}
-- Access Token: {'✓ установлен' if settings.wordstat_access_token else '✗ отсутствует'}
+- Access Token: ✓ установлен и работает
 
-Проверьте подключение: wordstat_get_user_info"""
+✅ Доступные команды Wordstat:
+- wordstat_get_regions - распределение по регионам
+- wordstat_get_top_requests - топ запросов
+- wordstat_get_dynamics - динамика по времени
+- wordstat_get_regions_tree - дерево регионов"""
                             else:
                                 result_content = f"""❌ Ошибка Wordstat API!
 
