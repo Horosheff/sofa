@@ -28,6 +28,7 @@ from sse_starlette import EventSourceResponse
 from .models import User, UserSettings, ActivityLog, AdminLog, LoginAttempt
 from .schemas import UserCreate, UserLogin, MCPRequest, MCPResponse
 from .admin_routes import router as admin_router
+from .telegram_check import router as telegram_check_router
 from .wordpress_tools import handle_wordpress_tool
 from .wordstat_tools import handle_wordstat_tool
 from .telegram_tools import handle_telegram_tool
@@ -94,6 +95,7 @@ async def log_requests(request: Request, call_next):
 
 # Подключаем админ роуты
 app.include_router(admin_router)
+app.include_router(telegram_check_router, prefix="/api/telegram", tags=["Telegram"])
 
 # CORS настройки - безопасные настройки для продакшена
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
