@@ -940,16 +940,24 @@ async def send_sse_event_oauth(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
+                                logger.info(f"Wordstat /v1/regions response type: {type(data)}, data: {str(data)[:500]}")
                                 
-                                for item in data.get('regions', [])[:20]:
-                                    result_content += f"""📍 Регион ID {item['regionId']}:
-   Запросов: {item['count']}
-   Доля: {item['share']:.4f}%
-   Индекс интереса: {item['affinityIndex']:.2f}%\n"""
+                                # Проверяем, что data - это словарь с ключом 'regions'
+                                if isinstance(data, dict) and 'regions' in data:
+                                    regions_list = data['regions']
+                                    result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
+                                    
+                                    for item in regions_list[:20]:
+                                        result_content += f"""📍 Регион ID {item.get('regionId', 'N/A')}:
+   Запросов: {item.get('count', 0)}
+   Доля: {item.get('share', 0):.4f}%
+   Индекс интереса: {item.get('affinityIndex', 0):.2f}%\n"""
+                                else:
+                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:200]}"
                             else:
                                 result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
                     except Exception as e:
+                        logger.error(f"Wordstat /v1/regions exception: {str(e)}", exc_info=True)
                         result_content = f"❌ Ошибка: {str(e)}"
             
             elif tool_name == "wordstat_auto_setup":
@@ -1566,17 +1574,25 @@ async def send_sse_event(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
+                                logger.info(f"Wordstat /v1/regions response type: {type(data)}, data: {str(data)[:500]}")
                                 
-                                for item in data.get('regions', [])[:20]:
-                                    result_content += f"""📍 Регион ID {item['regionId']}:
-   Запросов: {item['count']}
-   Доля: {item['share']:.4f}%
-   Индекс интереса: {item['affinityIndex']:.2f}%\n"""
+                                # Проверяем, что data - это словарь с ключом 'regions'
+                                if isinstance(data, dict) and 'regions' in data:
+                                    regions_list = data['regions']
+                                    result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
+                                    
+                                    for item in regions_list[:20]:
+                                        result_content += f"""📍 Регион ID {item.get('regionId', 'N/A')}:
+   Запросов: {item.get('count', 0)}
+   Доля: {item.get('share', 0):.4f}%
+   Индекс интереса: {item.get('affinityIndex', 0):.2f}%\n"""
+                                else:
+                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:200]}"
                             else:
                                 result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
                                 
                     except Exception as e:
+                        logger.error(f"Wordstat /v1/regions exception: {str(e)}", exc_info=True)
                         result_content = f"❌ Ошибка: {str(e)}"
                 
                 response = {
