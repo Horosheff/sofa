@@ -1510,10 +1510,41 @@ async def send_sse_event(
                         }]
                     }
                 }
+            
+            # ==================== TELEGRAM TOOLS ====================
+            elif tool_name.startswith("telegram_"):
+                # Проверяем настройки Telegram
+                if not settings.telegram_bot_token:
+                    result_content = """❌ Telegram Bot не настроен!
+
+📋 Что нужно сделать:
+1. Зайдите на dashboard по адресу https://mcp-kv.ru
+2. В разделе "Настройки" заполните поле Telegram Bot Token
+3. Получите токен у @BotFather в Telegram
+
+После настройки попробуйте снова!"""
+                else:
+                    # Используем handle_telegram_tool из telegram_tools.py
+                    from app.telegram_tools import handle_telegram_tool
+                    try:
+                        result_content = await handle_telegram_tool(tool_name, tool_args, user.id, db)
+                    except Exception as e:
+                        result_content = f"❌ Ошибка Telegram API: {str(e)}"
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
                 
             else:
                 # Для остальных инструментов
-                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: get_posts, create_post, update_post, delete_post, search_posts\n• Wordstat: get_user_info, get_regions_tree, get_top_requests, get_dynamics, get_regions, auto_setup, set_token"
+                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: 28 инструментов\n• Wordstat: 5 инструментов\n• Telegram: 66 инструментов"
                 
                 response = {
                     "jsonrpc": "2.0",
