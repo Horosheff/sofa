@@ -69,12 +69,41 @@ def migrate_database():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 action_type TEXT NOT NULL,
+                action_name TEXT,
+                status TEXT DEFAULT 'success',
                 details TEXT,
+                error_message TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         """)
         print("✓ activity_logs table ready")
+        
+        # Add missing columns to existing activity_logs table
+        cursor.execute("PRAGMA table_info(activity_logs)")
+        activity_columns = [row[1] for row in cursor.fetchall()]
+        
+        if 'action_name' not in activity_columns:
+            cursor.execute("ALTER TABLE activity_logs ADD COLUMN action_name TEXT")
+            print("✓ Added action_name column to activity_logs")
+            
+        if 'status' not in activity_columns:
+            cursor.execute("ALTER TABLE activity_logs ADD COLUMN status TEXT DEFAULT 'success'")
+            print("✓ Added status column to activity_logs")
+            
+        if 'error_message' not in activity_columns:
+            cursor.execute("ALTER TABLE activity_logs ADD COLUMN error_message TEXT")
+            print("✓ Added error_message column to activity_logs")
+            
+        if 'ip_address' not in activity_columns:
+            cursor.execute("ALTER TABLE activity_logs ADD COLUMN ip_address TEXT")
+            print("✓ Added ip_address column to activity_logs")
+            
+        if 'user_agent' not in activity_columns:
+            cursor.execute("ALTER TABLE activity_logs ADD COLUMN user_agent TEXT")
+            print("✓ Added user_agent column to activity_logs")
         
         # Commit changes
         conn.commit()
