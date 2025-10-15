@@ -222,6 +222,7 @@ export default function ToolsPanel() {
   const [settings, setSettings] = useState<UserSettings>({
     has_wordpress_credentials: false,
     has_wordstat_credentials: false,
+    has_telegram_bot: false,
   })
 
   useEffect(() => {
