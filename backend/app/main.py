@@ -1482,7 +1482,7 @@ async def send_sse_event(
                     # Импортируем функции WordPress
                     from app.wordpress_tools import (
                         wordpress_get_posts, wordpress_create_post, wordpress_update_post,
-                        wordpress_delete_post, wordpress_search_posts
+                        wordpress_delete_post, wordpress_search_posts, wordpress_upload_image_from_url
                     )
                     
                     try:
@@ -1496,6 +1496,8 @@ async def send_sse_event(
                             result_content = await wordpress_delete_post(settings, tool_args)
                         elif tool_name == "wordpress_search_posts":
                             result_content = await wordpress_search_posts(settings, tool_args)
+                        elif tool_name == "wordpress_upload_image_from_url":
+                            result_content = await wordpress_upload_image_from_url(settings, tool_args)
                         else:
                             result_content = f"❌ WordPress инструмент '{tool_name}' пока не реализован"
                     except Exception as e:
