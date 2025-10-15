@@ -52,6 +52,45 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Middleware для детального логирования
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    # Логируем входящий запрос
+    body = None
+    if request.method in ["POST", "PUT", "PATCH"]:
+        try:
+            body = await request.body()
+            # Восстанавливаем body для дальнейшей обработки
+            async def receive():
+                return {"type": "http.request", "body": body}
+            request._receive = receive
+        except:
+            pass
+    
+    logger.info(f">>> REQUEST: {request.method} {request.url.path}")
+    logger.info(f"    Headers: {dict(request.headers)}")
+    logger.info(f"    Query params: {dict(request.query_params)}")
+    if body:
+        try:
+            logger.info(f"    Body: {body.decode()[:500]}")  # Первые 500 символов
+        except:
+            logger.info(f"    Body: [binary data]")
+    
+    # Выполняем запрос
+    response = await call_next(request)
+    
+    # Логируем ответ
+    logger.info(f"<<< RESPONSE: {request.method} {request.url.path} - Status: {response.status_code}")
+    
+    return response
+
 # Подключаем админ роуты
 app.include_router(admin_router)
 
