@@ -1790,6 +1790,7 @@ async def oauth_token(request: Request):
 
 
 @app.post("/api/oauth/yandex/callback")
+@app.post("/oauth/yandex/callback")  # Дубликат для Nginx-проксирования
 async def yandex_oauth_callback(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Обработка OAuth callback от Yandex"""
     logger.info(f"=== OAUTH CALLBACK STARTED === User: {current_user.email}")
