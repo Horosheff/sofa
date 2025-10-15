@@ -852,6 +852,12 @@ async def handle_wordpress_tool(tool_name: str, settings: UserSettings, tool_arg
         "wordpress_create_tag": wordpress_create_tag,
         "wordpress_update_tag": wordpress_update_tag,
         "wordpress_delete_tag": wordpress_delete_tag,
+        # Pages
+        "wordpress_get_pages": wordpress_get_pages,
+        "wordpress_create_page": wordpress_create_page,
+        "wordpress_update_page": wordpress_update_page,
+        "wordpress_delete_page": wordpress_delete_page,
+        "wordpress_search_pages": wordpress_search_pages,
         # Media
         "wordpress_upload_media": wordpress_upload_media,
         "wordpress_upload_image_from_url": wordpress_upload_image_from_url,
@@ -863,11 +869,6 @@ async def handle_wordpress_tool(tool_name: str, settings: UserSettings, tool_arg
         "wordpress_update_comment": wordpress_update_comment,
         "wordpress_delete_comment": wordpress_delete_comment,
         "wordpress_moderate_comment": wordpress_moderate_comment,
-        # Users
-        "wordpress_get_users": wordpress_get_users,
-        "wordpress_create_user": wordpress_create_user,
-        "wordpress_update_user": wordpress_update_user,
-        "wordpress_delete_user": wordpress_delete_user,
     }
     
     handler = tools_map.get(tool_name)

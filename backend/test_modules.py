@@ -246,29 +246,29 @@ def test_mcp_handlers():
     # Test WordPress tools
     tests_total += 1
     wp_tools = get_wordpress_tools()
-    if len(wp_tools) == 27 and wp_tools[0]["name"] == "wordpress_get_posts":
+    if len(wp_tools) == 28 and wp_tools[0]["name"] == "wordpress_get_posts":
         print(f"[OK] get_wordpress_tools() вернул {len(wp_tools)} tools")
         tests_passed += 1
     else:
-        print(f"[X] get_wordpress_tools() failed: {len(wp_tools)} tools (expected 27)")
+        print(f"[X] get_wordpress_tools() failed: {len(wp_tools)} tools (expected 28)")
     
     # Test Wordstat tools
     tests_total += 1
     ws_tools = get_wordstat_tools()
-    if len(ws_tools) == 7 and ws_tools[0]["name"] == "wordstat_set_token":
+    if len(ws_tools) == 5 and ws_tools[0]["name"] == "wordstat_get_user_info":
         print(f"[OK] get_wordstat_tools() вернул {len(ws_tools)} tools")
         tests_passed += 1
     else:
-        print(f"[X] get_wordstat_tools() failed: {len(ws_tools)} tools")
+        print(f"[X] get_wordstat_tools() failed: {len(ws_tools)} tools (expected 5)")
     
     # Test all MCP tools
     tests_total += 1
     all_tools = get_all_mcp_tools()
-    if len(all_tools) == 34:  # 27 WP + 7 WS
+    if len(all_tools) == 33:  # 28 WP + 5 WS
         print(f"[OK] get_all_mcp_tools() вернул {len(all_tools)} tools")
         tests_passed += 1
     else:
-        print(f"[X] get_all_mcp_tools() failed: {len(all_tools)} tools (expected 34)")
+        print(f"[X] get_all_mcp_tools() failed: {len(all_tools)} tools (expected 33)")
     
     # Test MCP server info
     tests_total += 1

@@ -512,52 +512,65 @@ def get_wordpress_tools() -> list:
             }
         },
         {
-            "name": "wordpress_get_users",
-            "description": "Получить список пользователей WordPress",
+            "name": "wordpress_get_pages",
+            "description": "Получить список страниц WordPress",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "per_page": {"type": "number", "description": "Количество пользователей"},
-                    "role": {"type": "string", "description": "Роль пользователя (administrator, editor, author, etc.)"}
+                    "per_page": {"type": "number", "description": "Количество страниц"},
+                    "status": {"type": "string", "description": "Статус страниц (publish, draft, any)"}
                 }
             }
         },
         {
-            "name": "wordpress_create_user",
-            "description": "Создать нового пользователя",
+            "name": "wordpress_create_page",
+            "description": "Создать новую страницу в WordPress",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "username": {"type": "string", "description": "Имя пользователя"},
-                    "email": {"type": "string", "description": "Email адрес"},
-                    "password": {"type": "string", "description": "Пароль"},
-                    "role": {"type": "string", "description": "Роль пользователя"}
+                    "title": {"type": "string", "description": "Заголовок страницы"},
+                    "content": {"type": "string", "description": "Содержимое страницы"},
+                    "status": {"type": "string", "description": "Статус (draft, publish)"},
+                    "parent": {"type": "number", "description": "ID родительской страницы (опционально)"}
                 },
-                "required": ["username", "email", "password"]
+                "required": ["title", "content"]
             }
         },
         {
-            "name": "wordpress_update_user",
-            "description": "Обновить пользователя",
+            "name": "wordpress_update_page",
+            "description": "Обновить существующую страницу",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "user_id": {"type": "number", "description": "ID пользователя"},
-                    "email": {"type": "string", "description": "Новый email"},
-                    "role": {"type": "string", "description": "Новая роль"}
+                    "page_id": {"type": "number", "description": "ID страницы"},
+                    "title": {"type": "string", "description": "Новый заголовок"},
+                    "content": {"type": "string", "description": "Новое содержимое"},
+                    "status": {"type": "string", "description": "Новый статус"},
+                    "parent": {"type": "number", "description": "ID родительской страницы"}
                 },
-                "required": ["user_id"]
+                "required": ["page_id"]
             }
         },
         {
-            "name": "wordpress_delete_user",
-            "description": "Удалить пользователя",
+            "name": "wordpress_delete_page",
+            "description": "Удалить страницу",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "user_id": {"type": "number", "description": "ID пользователя для удаления"}
+                    "page_id": {"type": "number", "description": "ID страницы для удаления"}
                 },
-                "required": ["user_id"]
+                "required": ["page_id"]
+            }
+        },
+        {
+            "name": "wordpress_search_pages",
+            "description": "Поиск страниц по ключевым словам",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "search": {"type": "string", "description": "Поисковый запрос"}
+                },
+                "required": ["search"]
             }
         },
         {
@@ -583,17 +596,6 @@ def get_wordstat_tools() -> list:
         List of tool definitions
     """
     return [
-        {
-            "name": "wordstat_set_token",
-            "description": "Установить токен Yandex Wordstat",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "token": {"type": "string", "description": "Access token от Yandex OAuth"}
-                },
-                "required": ["token"]
-            }
-        },
         {
             "name": "wordstat_get_user_info",
             "description": "Получить информацию об аккаунте Wordstat",
@@ -643,11 +645,6 @@ def get_wordstat_tools() -> list:
                 },
                 "required": ["phrase"]
             }
-        },
-        {
-            "name": "wordstat_auto_setup",
-            "description": "Автоматическая настройка подключения Wordstat с диагностикой",
-            "inputSchema": {"type": "object", "properties": {}}
         }
     ]
 
