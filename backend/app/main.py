@@ -1417,10 +1417,126 @@ async def send_sse_event(
                     }
                 }
                 
-            elif tool_name == "wordstat_get_regions":
-                # Получаем список регионов
+            elif tool_name == "wordstat_get_regions_tree":
+                # Получаем дерево регионов
                 if not settings.wordstat_access_token:
-                    result_content = "❌ Wordstat не настроен! Сначала настройте токен через wordstat_auto_setup"
+                    result_content = "❌ Wordstat не настроен! Сначала настройте токен"
+                else:
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/getRegionsTree",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                json={},
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                # Формируем читаемый список регионов
+                                result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
+                                
+                                def format_regions(regions, level=0):
+                                    text = ""
+                                    for region in regions[:20]:  # Ограничим для читаемости
+                                        indent = "  " * level
+                                        text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
+                                        if region.get('children'):
+                                            text += format_regions(region['children'], level + 1)
+                                    return text
+                                
+                                result_content += format_regions(data.get('regions', []))
+                                result_content += "\n💡 Используйте ID регионов для других запросов"
+                            else:
+                                result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
+                                
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
+                
+            elif tool_name == "wordstat_get_dynamics":
+                # Получаем динамику запросов
+                phrase = tool_args.get("phrase")
+                period = tool_args.get("period", "weekly")
+                from_date = tool_args.get("fromDate") or tool_args.get("from_date")
+                to_date = tool_args.get("toDate") or tool_args.get("to_date")
+                regions = tool_args.get("regions", [225])
+                devices = tool_args.get("devices", ["all"])
+                
+                if not settings.wordstat_access_token:
+                    result_content = "❌ Wordstat не настроен!"
+                elif not phrase:
+                    result_content = "❌ Не указана фраза (параметр 'phrase')"
+                elif not from_date:
+                    result_content = "❌ Не указана дата начала (параметр 'fromDate' в формате YYYY-MM-DD)"
+                else:
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            payload = {
+                                "phrase": phrase,
+                                "period": period,
+                                "fromDate": from_date,
+                                "regions": regions if isinstance(regions, list) else [regions],
+                                "devices": devices
+                            }
+                            if to_date:
+                                payload["toDate"] = to_date
+                            
+                            resp = await client.post(
+                                "https://api.wordstat.yandex.net/v1/dynamics",
+                                headers={
+                                    "Authorization": f"Bearer {settings.wordstat_access_token}",
+                                    "Content-Type": "application/json;charset=utf-8"
+                                },
+                                json=payload,
+                                timeout=30.0
+                            )
+                            
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                result_content = f"✅ Динамика запроса '{phrase}' (период: {period})\n\n"
+                                
+                                for item in data.get('dynamics', []):
+                                    result_content += f"📅 {item['date']}: {item['count']} запросов (доля: {item.get('share', 0):.4f}%)\n"
+                            else:
+                                result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
+                    except Exception as e:
+                        result_content = f"❌ Ошибка: {str(e)}"
+                
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{
+                            "type": "text",
+                            "text": result_content
+                        }]
+                    }
+                }
+                
+            elif tool_name == "wordstat_get_regions":
+                # Получаем статистику по регионам
+                phrase = tool_args.get("phrase")
+                region_type = tool_args.get("regionType", "all")
+                devices = tool_args.get("devices", ["all"])
+                
+                if not settings.wordstat_access_token:
+                    result_content = "❌ Wordstat не настроен!"
+                elif not phrase:
+                    result_content = "❌ Не указана фраза (параметр 'phrase')"
                 else:
                     try:
                         async with httpx.AsyncClient() as client:
@@ -1430,19 +1546,23 @@ async def send_sse_event(
                                     "Authorization": f"Bearer {settings.wordstat_access_token}",
                                     "Content-Type": "application/json;charset=utf-8"
                                 },
+                                json={
+                                    "phrase": phrase,
+                                    "regionType": region_type,
+                                    "devices": devices
+                                },
                                 timeout=30.0
                             )
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                regions = data.get('data', [])
-                                result_content = f"✅ Получено {len(regions)} регионов:\n\n"
+                                result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
                                 
-                                for region in regions[:10]:  # Показываем первые 10
-                                    result_content += f"• {region.get('name', 'Без названия')} (ID: {region.get('region_id', 'N/A')})\n"
-                                
-                                if len(regions) > 10:
-                                    result_content += f"\n... и еще {len(regions) - 10} регионов"
+                                for item in data.get('regions', [])[:20]:
+                                    result_content += f"""📍 Регион ID {item['regionId']}:
+   Запросов: {item['count']}
+   Доля: {item['share']:.4f}%
+   Индекс интереса: {item['affinityIndex']:.2f}%\n"""
                             else:
                                 result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
                                 
