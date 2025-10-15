@@ -1949,17 +1949,23 @@ async def oauth_token(request: Request):
 @app.post("/api/oauth/yandex/callback")
 async def yandex_oauth_callback(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Обработка OAuth callback от Yandex"""
+    logger.info(f"=== OAUTH CALLBACK STARTED === User: {current_user.email}")
     try:
         data = await request.json()
+        logger.info(f"Received data: {data}")
         code = data.get("code")
+        logger.info(f"Authorization code: {code[:10]}..." if code else "No code!")
         
         if not code:
             raise HTTPException(status_code=400, detail="Missing authorization code")
         
         # Получаем настройки пользователя
+        logger.info(f"Fetching settings for user_id={current_user.id}")
         settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
         if not settings:
+            logger.error(f"Settings not found for user_id={current_user.id}")
             raise HTTPException(status_code=404, detail="User settings not found")
+        logger.info(f"Settings found: client_id={settings.wordstat_client_id}, redirect_uri={settings.wordstat_redirect_uri}")
         
         if not settings.wordstat_client_id or not settings.wordstat_client_secret:
             raise HTTPException(status_code=400, detail="Client ID and Client Secret must be configured first")
@@ -2026,7 +2032,8 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
             
             db.commit()
             
-            logger.info(f"OAuth tokens saved for user {current_user.email}")
+            logger.info(f"✅ OAuth tokens saved for user {current_user.email}")
+            logger.info(f"=== OAUTH CALLBACK COMPLETED SUCCESSFULLY ===")
             
             return {
                 "success": True,
@@ -2035,10 +2042,14 @@ async def yandex_oauth_callback(request: Request, current_user: User = Depends(g
                 "expires_in": expires_in
             }
             
-    except HTTPException:
+    except HTTPException as he:
+        logger.error(f"❌ OAuth HTTPException: {he.status_code} - {he.detail}")
         raise
     except Exception as e:
-        logger.error(f"OAuth callback error: {str(e)}")
+        logger.error(f"❌ OAuth callback error: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
