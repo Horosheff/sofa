@@ -581,9 +581,9 @@ async def send_sse_event_oauth(
             # Yandex Wordstat API (v1) - все 5 методов
             {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat (/v1/userInfo)", "inputSchema": {"type": "object"}},
             {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов (/v1/getRegionsTree)", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "numPhrases": {"type": "integer"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"]}, "fromDate": {"type": "string"}, "toDate": {"type": "string"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase", "fromDate"]}},
-            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"]}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}}
+            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "numPhrases": {"type": "integer", "description": "Количество запросов", "default": 50}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов (225=Россия)", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"], "description": "Период", "default": "monthly"}, "fromDate": {"type": "string", "description": "Дата начала (YYYY-MM-DD)"}, "toDate": {"type": "string", "description": "Дата окончания (YYYY-MM-DD)"}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase", "fromDate"]}},
+            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"], "description": "Тип регионов", "default": "all"}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства (НЕ 'mobile'!)", "default": ["all"]}}, "required": ["phrase"]}}
         ]
         response = {
             "jsonrpc": "2.0",
@@ -784,16 +784,26 @@ async def send_sse_event_oauth(
                                     "Authorization": f"Bearer {settings.wordstat_access_token}",
                                     "Content-Type": "application/json;charset=utf-8"
                                 },
+                                json={},
                                 timeout=30.0
                             )
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                result_content = f"""✅ Дерево регионов Yandex Wordstat:
-
-{json.dumps(data, indent=2, ensure_ascii=False)}
-
-💡 Используйте ID регионов для других запросов."""
+                                # Формируем читаемый список регионов
+                                result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
+                                
+                                def format_regions(regions, level=0):
+                                    text = ""
+                                    for region in regions[:20]:  # Ограничим для читаемости
+                                        indent = "  " * level
+                                        text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
+                                        if region.get('children'):
+                                            text += format_regions(region['children'], level + 1)
+                                    return text
+                                
+                                result_content += format_regions(data.get('regions', []))
+                                result_content += "\n💡 Используйте ID регионов для других запросов"
                             else:
                                 result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
                     except Exception as e:
@@ -1248,9 +1258,9 @@ async def send_sse_event(
             # Yandex Wordstat API (v1) - все 5 методов
             {"name": "wordstat_get_user_info", "description": "Получить информацию о пользователе Wordstat (/v1/userInfo)", "inputSchema": {"type": "object"}},
             {"name": "wordstat_get_regions_tree", "description": "Получить дерево регионов (/v1/getRegionsTree)", "inputSchema": {"type": "object"}},
-            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "numPhrases": {"type": "integer"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}},
-            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"]}, "fromDate": {"type": "string"}, "toDate": {"type": "string"}, "regions": {"type": "array", "items": {"type": "integer"}}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase", "fromDate"]}},
-            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"]}, "devices": {"type": "array", "items": {"type": "string"}}}, "required": ["phrase"]}}
+            {"name": "wordstat_get_top_requests", "description": "Получить топ поисковых запросов (/v1/topRequests)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "numPhrases": {"type": "integer", "description": "Количество запросов", "default": 50}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов (225=Россия)", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase"]}},
+            {"name": "wordstat_get_dynamics", "description": "Получить динамику запросов (/v1/dynamics)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "period": {"type": "string", "enum": ["monthly", "weekly", "daily"], "description": "Период", "default": "monthly"}, "fromDate": {"type": "string", "description": "Дата начала (YYYY-MM-DD)"}, "toDate": {"type": "string", "description": "Дата окончания (YYYY-MM-DD)"}, "regions": {"type": "array", "items": {"type": "integer"}, "description": "ID регионов", "default": [225]}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства", "default": ["all"]}}, "required": ["phrase", "fromDate"]}},
+            {"name": "wordstat_get_regions", "description": "Получить статистику по регионам (/v1/regions)", "inputSchema": {"type": "object", "properties": {"phrase": {"type": "string", "description": "Ключевое слово"}, "regionType": {"type": "string", "enum": ["all", "cities", "regions"], "description": "Тип регионов", "default": "all"}, "devices": {"type": "array", "items": {"type": "string", "enum": ["all", "desktop", "phone", "tablet"]}, "description": "Устройства (НЕ 'mobile'!)", "default": ["all"]}}, "required": ["phrase"]}}
         ]
         
         response = {
