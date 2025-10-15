@@ -790,30 +790,40 @@ async def send_sse_event_oauth(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
+                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}")
                                 
-                                # Проверяем, что data - это словарь с ключом 'regions'
-                                if isinstance(data, dict) and 'regions' in data:
+                                # API возвращает список напрямую (не объект с ключом 'regions')
+                                if isinstance(data, list):
+                                    regions_list = data
+                                elif isinstance(data, dict) and 'regions' in data:
                                     regions_list = data['regions']
+                                else:
+                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}"
+                                    regions_list = None
+                                
+                                if regions_list is not None:
                                     result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
                                     
                                     def format_regions(regions, level=0):
                                         text = ""
                                         if not isinstance(regions, list):
                                             return "⚠️ Ожидался список регионов\n"
-                                        for region in regions[:20]:  # Ограничим для читаемости
+                                        for region in regions[:20] if level == 0 else regions:  # Ограничим только корневой уровень
                                             if not isinstance(region, dict):
                                                 continue
                                             indent = "  " * level
-                                            text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
-                                            if region.get('children') and isinstance(region['children'], list):
-                                                text += format_regions(region['children'], level + 1)
+                                            # API использует 'value' и 'label' вместо 'id' и 'name'
+                                            region_id = region.get('value') or region.get('id', 'N/A')
+                                            region_name = region.get('label') or region.get('name', 'N/A')
+                                            text += f"{indent}• {region_name} (ID: {region_id})\n"
+                                            # children может быть None или списком
+                                            children = region.get('children')
+                                            if children and isinstance(children, list):
+                                                text += format_regions(children, level + 1)
                                         return text
                                     
                                     result_content += format_regions(regions_list)
                                     result_content += "\n💡 Используйте ID регионов для других запросов"
-                                else:
-                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:300]}"
                             else:
                                 result_content = f"❌ Ошибка {resp.status_code}: {resp.text}"
                     except Exception as e:
@@ -1465,30 +1475,40 @@ async def send_sse_event(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
+                                logger.info(f"Wordstat /v1/getRegionsTree response type: {type(data)}")
                                 
-                                # Проверяем, что data - это словарь с ключом 'regions'
-                                if isinstance(data, dict) and 'regions' in data:
+                                # API возвращает список напрямую (не объект с ключом 'regions')
+                                if isinstance(data, list):
+                                    regions_list = data
+                                elif isinstance(data, dict) and 'regions' in data:
                                     regions_list = data['regions']
+                                else:
+                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}"
+                                    regions_list = None
+                                
+                                if regions_list is not None:
                                     result_content = "✅ Дерево регионов Yandex Wordstat:\n\n"
                                     
                                     def format_regions(regions, level=0):
                                         text = ""
                                         if not isinstance(regions, list):
                                             return "⚠️ Ожидался список регионов\n"
-                                        for region in regions[:20]:  # Ограничим для читаемости
+                                        for region in regions[:20] if level == 0 else regions:  # Ограничим только корневой уровень
                                             if not isinstance(region, dict):
                                                 continue
                                             indent = "  " * level
-                                            text += f"{indent}• {region.get('name', 'N/A')} (ID: {region.get('id', 'N/A')})\n"
-                                            if region.get('children') and isinstance(region['children'], list):
-                                                text += format_regions(region['children'], level + 1)
+                                            # API использует 'value' и 'label' вместо 'id' и 'name'
+                                            region_id = region.get('value') or region.get('id', 'N/A')
+                                            region_name = region.get('label') or region.get('name', 'N/A')
+                                            text += f"{indent}• {region_name} (ID: {region_id})\n"
+                                            # children может быть None или списком
+                                            children = region.get('children')
+                                            if children and isinstance(children, list):
+                                                text += format_regions(children, level + 1)
                                         return text
                                     
                                     result_content += format_regions(regions_list)
                                     result_content += "\n💡 Используйте ID регионов для других запросов"
-                                else:
-                                    result_content = f"❌ Неожиданный формат ответа API. Тип: {type(data)}, Данные: {str(data)[:300]}"
                             else:
                                 result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
                                 
