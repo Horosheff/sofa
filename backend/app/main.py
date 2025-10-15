@@ -319,7 +319,7 @@ async def get_user_settings(
             settings.mcp_sse_url = expected_url
         db.commit()
         db.refresh(settings)
-
+    
     return {
         "wordpress_url": settings.wordpress_url,
         "wordpress_username": settings.wordpress_username,
@@ -795,15 +795,15 @@ async def send_sse_event_oauth(
             
             elif tool_name == "wordstat_get_top_requests":
                 # Получаем топ запросов через API v1
-                query = tool_args.get("query")
-                num_phrases = tool_args.get("num_phrases", 50)
+                phrase = tool_args.get("phrase")
+                num_phrases = tool_args.get("numPhrases", 50)
                 regions = tool_args.get("regions", [225])  # По умолчанию Россия
                 devices = tool_args.get("devices", ["all"])
                 
-                if not query:
-                    result_content = "❌ Ошибка: не указана фраза для поиска (параметр 'query')"
+                if not phrase:
+                    result_content = "❌ Ошибка: не указана фраза для поиска (параметр 'phrase')"
                 elif not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
+                    result_content = "❌ Токен Wordstat не настроен."
                 else:
                     try:
                         async with httpx.AsyncClient() as client:
@@ -814,7 +814,7 @@ async def send_sse_event_oauth(
                                     "Content-Type": "application/json;charset=utf-8"
                                 },
                                 json={
-                                    "phrase": query,
+                                    "phrase": phrase,
                                     "numPhrases": num_phrases,
                                     "regions": regions if isinstance(regions, list) else [regions],
                                     "devices": devices
@@ -828,7 +828,7 @@ async def send_sse_event_oauth(
                             if resp.status_code == 200:
                                 data = resp.json()
                                 
-                                result_content = f"""✅ Топ запросов для '{data.get('requestPhrase', query)}'
+                                result_content = f"""✅ Топ запросов для '{data.get('requestPhrase', phrase)}'
                                 
 📊 Общее число запросов: {data.get('totalCount', 0)}
 
@@ -848,24 +848,24 @@ async def send_sse_event_oauth(
             
             elif tool_name == "wordstat_get_dynamics":
                 # Получаем динамику запросов через API v1
-                query = tool_args.get("query")
+                phrase = tool_args.get("phrase")
                 period = tool_args.get("period", "weekly")  # monthly, weekly, daily
-                from_date = tool_args.get("from_date")
-                to_date = tool_args.get("to_date")
+                from_date = tool_args.get("fromDate") or tool_args.get("from_date")
+                to_date = tool_args.get("toDate") or tool_args.get("to_date")
                 regions = tool_args.get("regions", [225])
                 devices = tool_args.get("devices", ["all"])
                 
-                if not query:
-                    result_content = "❌ Ошибка: не указана фраза (параметр 'query')"
+                if not phrase:
+                    result_content = "❌ Ошибка: не указана фраза (параметр 'phrase')"
                 elif not from_date:
-                    result_content = "❌ Ошибка: не указана дата начала (параметр 'from_date' в формате YYYY-MM-DD)"
+                    result_content = "❌ Ошибка: не указана дата начала (параметр 'fromDate' в формате YYYY-MM-DD)"
                 elif not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
+                    result_content = "❌ Токен Wordstat не настроен."
                 else:
                     try:
                         async with httpx.AsyncClient() as client:
                             payload = {
-                                "phrase": query,
+                                "phrase": phrase,
                                 "period": period,
                                 "fromDate": from_date,
                                 "regions": regions if isinstance(regions, list) else [regions],
@@ -886,7 +886,7 @@ async def send_sse_event_oauth(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                result_content = f"✅ Динамика запроса '{query}' (период: {period})\n\n"
+                                result_content = f"✅ Динамика запроса '{phrase}' (период: {period})\n\n"
                                 
                                 for item in data.get('dynamics', []):
                                     result_content += f"📅 {item['date']}: {item['count']} запросов (доля: {item.get('share', 0):.4f}%)\n"
@@ -897,14 +897,14 @@ async def send_sse_event_oauth(
             
             elif tool_name == "wordstat_get_regions":
                 # Получаем статистику по регионам через API v1
-                query = tool_args.get("query")
-                region_type = tool_args.get("region_type", "all")  # cities, regions, all
+                phrase = tool_args.get("phrase")
+                region_type = tool_args.get("regionType", "all")  # cities, regions, all
                 devices = tool_args.get("devices", ["all"])
                 
-                if not query:
-                    result_content = "❌ Ошибка: не указана фраза (параметр 'query')"
+                if not phrase:
+                    result_content = "❌ Ошибка: не указана фраза (параметр 'phrase')"
                 elif not settings.wordstat_access_token:
-                    result_content = "❌ Токен Wordstat не настроен. Используйте wordstat_set_token."
+                    result_content = "❌ Токен Wordstat не настроен."
                 else:
                     try:
                         async with httpx.AsyncClient() as client:
@@ -915,7 +915,7 @@ async def send_sse_event_oauth(
                                     "Content-Type": "application/json;charset=utf-8"
                                 },
                                 json={
-                                    "phrase": query,
+                                    "phrase": phrase,
                                     "regionType": region_type,
                                     "devices": devices
                                 },
@@ -924,7 +924,7 @@ async def send_sse_event_oauth(
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                result_content = f"✅ Распределение по регионам для '{query}'\n\n"
+                                result_content = f"✅ Распределение по регионам для '{phrase}'\n\n"
                                 
                                 for item in data.get('regions', [])[:20]:
                                     result_content += f"""📍 Регион ID {item['regionId']}:
@@ -1172,14 +1172,14 @@ async def send_sse_event(
             connector_id,
         )
         # Проверим, что connector_id существует в базе
-        settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
-        if not settings:
+    settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
+    if not settings:
             logger.warning(
                 "SSE POST: connector %s not found in database",
                 connector_id,
             )
-            raise HTTPException(status_code=404, detail="Коннектор не найден")
-
+        raise HTTPException(status_code=404, detail="Коннектор не найден")
+    
     # Handle JSON-RPC requests
     method = payload.get("method")
     request_id = payload.get("id")
@@ -1273,7 +1273,7 @@ async def send_sse_event(
         settings = db.query(UserSettings).filter(UserSettings.mcp_connector_id == connector_id).first()
         if not settings:
             logger.warning("SSE POST: tools/call connector %s not found in database", connector_id)
-            return {
+    return {
                 "jsonrpc": "2.0",
                 "id": request_id,
                 "error": {
