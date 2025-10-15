@@ -78,7 +78,6 @@ export default function SettingsPanel() {
   const watchValues = {
     wordpress_password: watch('wordpress_password'),
     wordstat_client_secret: watch('wordstat_client_secret'),
-    telegram_bot_token: watch('telegram_bot_token'),
     telegram_webhook_secret: watch('telegram_webhook_secret'),
     mcp_sse_url: watch('mcp_sse_url'),
     mcp_connector_id: watch('mcp_connector_id'),
@@ -523,14 +522,17 @@ export default function SettingsPanel() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <PasswordField
-              label="Токен бота"
-              name="telegram_bot_token"
-              value={watchValues.telegram_bot_token}
-              onChange={(value) => setValue('telegram_bot_token', value, { shouldDirty: true })}
-              placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-              className="md:col-span-2"
-            />
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground/80 mb-2">
+                Токен бота
+              </label>
+              <input
+                {...register('telegram_bot_token')}
+                type="password"
+                className="modern-input w-full"
+                placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-foreground/80 mb-2">
                 Webhook URL (опционально)
