@@ -62,20 +62,8 @@ class ActivityLog(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    
-    # Тип действия
     action_type = Column(String, nullable=False, index=True)  # 'wordpress', 'wordstat', 'settings', 'mcp'
-    action_name = Column(String, nullable=False)  # Название команды/действия
-    
-    # Детали
-    status = Column(String, default="success")  # 'success', 'error', 'pending'
     details = Column(Text, nullable=True)  # JSON с дополнительными данными
-    error_message = Column(Text, nullable=True)
-    
-    # Метаданные
-    ip_address = Column(String, nullable=True)
-    user_agent = Column(String, nullable=True)
-    
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     
     # Связь с пользователем
