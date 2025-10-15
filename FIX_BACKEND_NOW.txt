@@ -1,0 +1,44 @@
+🚨 СРОЧНОЕ ИСПРАВЛЕНИЕ BACKEND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ ОШИБКА: ImportError: cannot import name 'decrypt_token' from 'app.helpers'
+
+✅ РЕШЕНИЕ: Добавить функции шифрования в helpers.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 КОМАНДЫ ДЛЯ СЕРВЕРА:
+
+cd /opt/sofiya
+wget -q https://raw.githubusercontent.com/Horosheff/sofa/main/FIX_DECRYPT_TOKEN_URGENT.sh
+chmod +x FIX_DECRYPT_TOKEN_URGENT.sh
+./FIX_DECRYPT_TOKEN_URGENT.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ ЧТО СДЕЛАЕТ СКРИПТ:
+
+1. Создаст резервную копию helpers.py
+2. Добавит функции encrypt_token и decrypt_token
+3. Установит библиотеку cryptography (если нужно)
+4. Перезапустит backend
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  ВАЖНО: После исправления нужно установить FERNET_KEY
+
+cd /opt/sofiya
+wget -q https://raw.githubusercontent.com/Horosheff/sofa/main/SET_ENCRYPTION_KEY.sh
+chmod +x SET_ENCRYPTION_KEY.sh
+source SET_ENCRYPTION_KEY.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 ПРОВЕРКА:
+
+pm2 logs backend --lines 20 --err
+
+Если нет ошибок ImportError - всё работает! ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
