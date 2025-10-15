@@ -1463,7 +1463,9 @@ async def send_sse_event(
             elif tool_name == "wordstat_get_top_requests":
                 # Получаем топ запросов
                 phrase = tool_args.get("phrase", "")
-                region_id = tool_args.get("region_id", 0)
+                num_phrases = tool_args.get("numPhrases", 50)
+                regions = tool_args.get("regions", [225])  # По умолчанию Россия
+                devices = tool_args.get("devices", ["all"])
                 
                 if not settings.wordstat_access_token:
                     result_content = "❌ Wordstat не настроен! Сначала настройте токен через wordstat_auto_setup"
@@ -1480,21 +1482,29 @@ async def send_sse_event(
                                 },
                                 json={
                                     "phrase": phrase,
-                                    "region_id": region_id
+                                    "numPhrases": num_phrases,
+                                    "regions": regions if isinstance(regions, list) else [regions],
+                                    "devices": devices
                                 },
                                 timeout=30.0
                             )
                             
                             if resp.status_code == 200:
                                 data = resp.json()
-                                requests = data.get('data', [])
-                                result_content = f"✅ Топ запросов для фразы '{phrase}':\n\n"
                                 
-                                for i, req in enumerate(requests[:10], 1):
-                                    result_content += f"{i}. {req.get('phrase', 'N/A')} - {req.get('shows', 0)} показов\n"
+                                result_content = f"""✅ Топ запросов для '{data.get('requestPhrase', phrase)}'
                                 
-                                if len(requests) > 10:
-                                    result_content += f"\n... и еще {len(requests) - 10} запросов"
+📊 Общее число запросов: {data.get('totalCount', 0)}
+
+🔝 Самые популярные запросы:"""
+                                
+                                for idx, item in enumerate(data.get('topRequests', [])[:10], 1):
+                                    result_content += f"\n{idx}. {item['phrase']}: {item['count']} показов"
+                                
+                                if data.get('associations'):
+                                    result_content += "\n\n🔗 Похожие запросы:"
+                                    for idx, item in enumerate(data.get('associations', [])[:5], 1):
+                                        result_content += f"\n{idx}. {item['phrase']}: {item['count']} показов"
                             else:
                                 result_content = f"❌ Ошибка API: {resp.status_code} - {resp.text}"
                                 
