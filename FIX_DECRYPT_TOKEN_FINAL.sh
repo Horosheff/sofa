@@ -1,65 +1,38 @@
 #!/bin/bash
 
-# 🚨 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ DECRYPT_TOKEN
-echo "🚨 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ DECRYPT_TOKEN"
-echo "====================================="
+echo "🔧 ИСПРАВЛЕНИЕ decrypt_token функции..."
 
-# Переходим в правильную папку
+# Перейти в папку проекта
 cd /opt/sofiya
 
-# 1. ПРОВЕРЯЕМ HELPERS.PY
-echo "1️⃣ Проверяем helpers.py..."
-cat backend/app/helpers.py
+# Активировать виртуальное окружение
+source backend/venv/bin/activate
 
-# 2. ДОБАВЛЯЕМ DECRYPT_TOKEN В HELPERS.PY
-echo "2️⃣ Добавляем decrypt_token в helpers.py..."
-cat >> backend/app/helpers.py << 'EOF'
+# Установить cryptography если не установлен
+pip install cryptography
 
-def decrypt_token(encrypted_token: str) -> str:
-    """
-    Расшифровать токен из базы данных
-    
-    Args:
-        encrypted_token: Зашифрованный токен
-        
-    Returns:
-        Расшифрованный токен
-    """
-    try:
-        # Простая расшифровка (в реальном проекте используйте proper encryption)
-        # Здесь просто возвращаем токен как есть, так как он уже в открытом виде
-        return encrypted_token
-    except Exception as e:
-        raise ValueError(f"Ошибка расшифровки токена: {str(e)}")
-EOF
+# Проверить что FERNET_KEY установлен
+if [ -z "$FERNET_KEY" ]; then
+    echo "⚠️  FERNET_KEY не установлен, генерируем новый..."
+    FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    echo "FERNET_KEY=$FERNET_KEY" >> backend/.env
+    echo "export FERNET_KEY=$FERNET_KEY" >> ~/.bashrc
+    export FERNET_KEY=$FERNET_KEY
+    echo "✅ FERNET_KEY установлен: $FERNET_KEY"
+else
+    echo "✅ FERNET_KEY уже установлен"
+fi
 
-# 3. ПРОВЕРЯЕМ РЕЗУЛЬТАТ
-echo "3️⃣ Проверяем результат..."
-grep -A 10 "def decrypt_token" backend/app/helpers.py
-
-# 4. ПЕРЕЗАПУСКАЕМ BACKEND
-echo "4️⃣ Перезапускаем backend..."
+# Перезапустить backend
+echo "🔄 Перезапуск backend..."
 pm2 restart backend
 
-# 5. ПРОВЕРЯЕМ СТАТУС
-echo "5️⃣ Проверяем статус..."
+# Проверить статус
+echo "📊 Статус PM2:"
 pm2 status
 
-# 6. ПРОВЕРЯЕМ ЛОГИ BACKEND
-echo "6️⃣ Проверяем логи backend..."
-pm2 logs backend --lines 10
+# Проверить логи backend
+echo "📋 Последние логи backend:"
+pm2 logs backend --lines 10 --err
 
-# 7. ТЕСТИРУЕМ ENDPOINT
-echo "7️⃣ Тестируем endpoint..."
-curl -X POST https://mcp-kv.ru/api/telegram/check-token \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer test" \
-  -v
-
-echo ""
-echo "🎯 ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ DECRYPT_TOKEN ЗАВЕРШЕНО!"
-echo "✅ Добавлена функция decrypt_token в helpers.py"
-echo "✅ Backend перезапущен"
-echo "✅ Telegram endpoint теперь работает"
-echo ""
-echo "🔍 Теперь зайди на сайт и проверь кнопку!"
+echo "✅ Исправление завершено!"

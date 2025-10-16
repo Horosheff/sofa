@@ -6,6 +6,9 @@ import re
 import secrets
 import string
 from typing import Optional, Dict, Any
+import os
+
+from cryptography.fernet import Fernet, InvalidToken
 from urllib.parse import urlparse
 import logging
 
@@ -440,4 +443,42 @@ class SimpleRateLimiter:
         """
         if key in self.requests:
             del self.requests[key]
+
+
+# ==================== ENCRYPTION HELPERS ====================
+
+_FERNET_SECRET = os.getenv("FERNET_KEY")
+_fernet: Optional[Fernet] = None
+
+if _FERNET_SECRET:
+    try:
+        _fernet = Fernet(_FERNET_SECRET.encode("utf-8"))
+    except Exception as exc:  # pragma: no cover - крайне редкий случай
+        logger.error("Некорректный FERNET_KEY: %s", exc)
+        _fernet = None
+else:
+    logger.warning("FERNET_KEY не задан – Telegram токены невозможно шифровать")
+
+
+def encrypt_token(token: str) -> str:
+    """Зашифровать строковое значение с помощью Fernet."""
+    if not token:
+        raise ValueError("Пустой токен нельзя зашифровать")
+    if not _fernet:
+        raise RuntimeError("FERNET_KEY не настроен – шифрование недоступно")
+    encrypted = _fernet.encrypt(token.encode("utf-8"))
+    return encrypted.decode("utf-8")
+
+
+def decrypt_token(token: str) -> str:
+    """Расшифровать сохранённый токен."""
+    if not token:
+        raise ValueError("Пустой токен невозможно расшифровать")
+    if not _fernet:
+        raise RuntimeError("FERNET_KEY не настроен – расшифровка недоступна")
+    try:
+        decrypted = _fernet.decrypt(token.encode("utf-8"))
+        return decrypted.decode("utf-8")
+    except InvalidToken as exc:
+        raise ValueError("Неверный зашифрованный токен – проверьте FERNET_KEY") from exc
 
