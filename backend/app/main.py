@@ -670,7 +670,7 @@ async def send_sse_event_oauth(
             
             # === UNKNOWN TOOL ===
             else:
-                result_content = f"Инструмент '{tool_name}' пока не реализован полностью.\n\nРеализованные инструменты:\n• WordPress: 18 инструментов (posts, categories, media, comments)\n• Wordstat: 7 инструментов (user_info, regions_tree, top_requests, dynamics, regions, set_token, auto_setup)\n• Telegram: 50+ инструментов (создание ботов, отправка сообщений, управление чатами)"
+                result_content = "Инструмент пока не реализован. Доступны: WordPress (28), Wordstat (5), Telegram (20)."
             response = {
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -1577,8 +1577,28 @@ async def send_sse_event(
 @app.get("/mcp/tools")
 async def get_available_tools():
     """Получить список доступных MCP инструментов"""
-    # Возвращаем актуальный список инструментов из mcp_handlers
-    return get_all_mcp_tools()
+    tools = get_all_mcp_tools()
+
+    categories = {
+        "WordPress": [],
+        "Wordstat": [],
+        "Telegram": [],
+    }
+
+    for tool in tools:
+        name: str = tool.get("name", "")
+        if name.startswith("wordpress_"):
+            categories["WordPress"].append(name.replace("wordpress_", ""))
+        elif name.startswith("wordstat_"):
+            categories["Wordstat"].append(name.replace("wordstat_", ""))
+        elif name.startswith("telegram_"):
+            categories["Telegram"].append(name.replace("telegram_", ""))
+
+    # Сортируем для стабильного отображения на фронтенде
+    for group in categories.values():
+        group.sort()
+
+    return categories
 
 @app.get("/.well-known/openid-configuration")
 async def openid_config():
